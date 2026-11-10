@@ -1,5 +1,4 @@
 baseURL = "https://highercomve.github.io/GhostKVM/"
-languageCode = "en"
 title = "GhostKVM"
 disableKinds = ["taxonomy", "term", "RSS", "sitemap", "section", "page"]
 enableGitInfo = false
