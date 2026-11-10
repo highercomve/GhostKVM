@@ -95,7 +95,7 @@ your real keyboard and mouse and sends them over that Bluetooth link instead.
 | **Bluetooth** | BlueZ 5.x and an adapter that supports the LE peripheral role (most from the last few years do; tested with an Intel AX210) |
 | **Permissions** | Your user in the `input` group, to read keyboards and mice. No root needed. |
 | **Other computer** | A Chromebook, or anything else that accepts a Bluetooth LE keyboard and mouse |
-| **Building** (only from source) | Go 1.26+, a C compiler, and the OpenGL/X11 headers Fyne needs (`libgl`, `libx11`, `libxcursor`, `libxrandr`, `libxinerama`, `libxi`, `libxxf86vm`) |
+| **Building** (only from source) | Go 1.26+, a C compiler, and the OpenGL/X11 headers Fyne needs (`libgl`, `libx11`, `libxcursor`, `libxrandr`, `libxinerama`, `libxi`, `libxxf86vm`, `libwayland`, `libxkbcommon`) |
 
 ### Desktops
 

@@ -35,7 +35,7 @@ jobs:
       - name: Install GUI build dependencies
         run: |
           sudo apt-get update
-          sudo apt-get install -y --no-install-recommends libgl1-mesa-dev xorg-dev libxkbcommon-dev xvfb
+          sudo apt-get install -y --no-install-recommends libgl1-mesa-dev xorg-dev libxkbcommon-dev libwayland-dev wayland-protocols xvfb
 
       - name: Vet
         run: make vet
@@ -66,7 +66,7 @@ jobs:
       - name: Install build dependencies
         run: |
           sudo apt-get update
-          sudo apt-get install -y --no-install-recommends libgl1-mesa-dev xorg-dev libxkbcommon-dev gettext-base
+          sudo apt-get install -y --no-install-recommends libgl1-mesa-dev xorg-dev libxkbcommon-dev libwayland-dev wayland-protocols gettext-base
           go install github.com/goreleaser/nfpm/v2/cmd/nfpm@v2.48.0
 
       - name: Determine version
