@@ -54,12 +54,12 @@ ignore = ["ydotoold", "YubiKey", "AVRCP"]
 screen_backend = "auto"
 
 [peer]
-name    = "chromebook"
+name    = ""            # nickname; empty uses the paired device's Bluetooth name
 side    = "left"        # left | right | top | bottom of the desktop monitor
 monitor = "HDMI-A-1"    # which desktop monitor it sits next to
-width   = 1920          # Chromebook screen resolution
+width   = 1920          # the other device's screen resolution
 height  = 1080
-speed   = 1.5           # raise if the Chromebook pointer feels slow
+speed   = 1.5           # raise if the pointer feels slow on the other device
 `
 
 // Path returns the config file location.
@@ -105,9 +105,6 @@ func (c *Config) Validate() error {
 	}
 	if c.Peer.Speed <= 0 {
 		c.Peer.Speed = 1
-	}
-	if c.Peer.Name == "" {
-		c.Peer.Name = "peer"
 	}
 	c.Peer.Side = strings.ToLower(c.Peer.Side)
 	switch c.Peer.Side {

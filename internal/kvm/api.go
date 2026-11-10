@@ -42,6 +42,8 @@ type Status struct {
 	Desktop       string           `json:"desktop"`                // screen backend, e.g. "Hyprland", "X11", "GNOME (Wayland)"
 	EdgeSwitching bool             `json:"edge_switching"`         // false: switch with the hotkey or tray
 	EdgeProblem   string           `json:"edge_problem,omitempty"` // why edge switching isn\'t working right now
+	PeerName      string           `json:"peer_name"`              // nickname, else the connected device\'s Bluetooth name, else "other device"
+	PeerDevice    string           `json:"peer_device,omitempty"`  // Bluetooth name of the connected device
 	Devices       []DeviceInfo     `json:"devices"`
 }
 
@@ -60,6 +62,8 @@ func (k *KVM) Status() (Status, error) {
 		st.Desktop = k.scr.Name()
 		st.EdgeSwitching = k.scr.EdgeSwitching()
 		st.EdgeProblem = k.edgeProblem
+		st.PeerName = k.peerName()
+		st.PeerDevice = k.peerDevice
 		for path, d := range k.devices {
 			st.Devices = append(st.Devices, DeviceInfo{Path: path, Name: d.Name, Kind: kindOf(d), Used: true})
 		}
@@ -120,7 +124,7 @@ func (k *KVM) Toggle() error {
 			return
 		}
 		if !k.hid.HostSubscribed() {
-			err = errors.New(k.cfg.Peer.Name + " is not connected")
+			err = errors.New(k.peerName() + " is not connected")
 			return
 		}
 		k.enterRemote(0.5, "UI")

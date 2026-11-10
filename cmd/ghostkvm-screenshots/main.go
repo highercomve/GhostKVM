@@ -33,13 +33,15 @@ func sample() kvm.Status {
 			EdgePush:      40,
 			Ignore:        []string{"YubiKey"},
 			Peer: config.Peer{
-				Name: "chromebook", Side: "left", Monitor: "DP-1",
+				Name: "", Side: "left", Monitor: "DP-1",
 				Width: 1920, Height: 1080, Speed: 1.2,
 			},
 		},
 		Monitors:      []screen.Monitor{{Name: "DP-1", X: 0, Y: 0, Width: 2560, Height: 1440}},
 		Desktop:       "Hyprland",
 		EdgeSwitching: true,
+		PeerName:      "Chromebook",
+		PeerDevice:    "Chromebook",
 		Devices: []kvm.DeviceInfo{
 			{Path: "/dev/input/event3", Name: "Mechanical Keyboard", Kind: "keyboard", Used: true},
 			{Path: "/dev/input/event5", Name: "Wireless Mouse", Kind: "mouse", Used: true},
@@ -65,9 +67,12 @@ func main() {
 
 	waiting := sample()
 	waiting.Connected = false
+	waiting.PeerName, waiting.PeerDevice = "other device", ""
 
 	above := sample()
+	above.PeerName, above.PeerDevice = "Pixel Tablet", "Pixel Tablet" // any Bluetooth device works
 	above.Config.Peer.Side = "top"
+	above.Config.Peer.Width, above.Config.Peer.Height = 1600, 1000
 	above.Monitors = []screen.Monitor{
 		{Name: "DP-1", X: 0, Y: 0, Width: 2560, Height: 1440},
 		{Name: "HDMI-A-1", X: 2560, Y: 180, Width: 1920, Height: 1080},

@@ -6,8 +6,6 @@ import (
 	"fmt"
 	"strings"
 	"sync"
-	"sync/atomic"
-	"time"
 
 	"github.com/godbus/dbus/v5"
 )
@@ -276,8 +274,6 @@ type Peripheral struct {
 	services []*service
 	kbd      *characteristic
 	mouse    *characteristic
-	hostUp   atomic.Bool // a bonded host is connected to us over LE
-	stop     chan struct{}
 }
 
 // New connects to BlueZ and prepares (but does not start) the peripheral.
@@ -298,32 +294,24 @@ func New(name string) (*Peripheral, error) {
 func (p *Peripheral) Conn() *dbus.Conn         { return p.conn }
 func (p *Peripheral) Adapter() dbus.ObjectPath { return p.adapter }
 
-// HostSubscribed reports whether a host can receive our input: it subscribed
-// in this session, or a bonded device is connected to us in the central role.
+// HostSubscribed reports whether a host is listening to our input: it
+// subscribed to the keyboard or mouse report in this session. A host that
+// is merely linked (for example across a GhostKVM restart) does not count:
+// its HID driver may not be using us.
 func (p *Peripheral) HostSubscribed() bool {
-	return p.hostUp.Load() || p.mouse.isNotifying() || p.kbd.isNotifying()
+	return p.mouse.isNotifying() || p.kbd.isNotifying()
 }
 
-// watchHosts refreshes hostUp once a second from BlueZ's device list.
-func (p *Peripheral) watchHosts() {
-	t := time.NewTicker(time.Second)
-	defer t.Stop()
-	for {
-		p.hostUp.Store(p.bondedHostConnected())
-		select {
-		case <-p.stop:
-			return
-		case <-t.C:
-		}
-	}
-}
-
-func (p *Peripheral) bondedHostConnected() bool {
+// connectedHosts lists bonded devices connected to us in the central role,
+// i.e. hosts using GhostKVM as a keyboard and mouse (not devices such as a
+// Bluetooth mouse that this computer connects to).
+func (p *Peripheral) connectedHosts() []dbus.ObjectPath {
 	var objs map[dbus.ObjectPath]map[string]map[string]dbus.Variant
 	if err := p.conn.Object(bluezBus, "/").Call(ifaceOM+".GetManagedObjects", 0).Store(&objs); err != nil {
-		return false
+		return nil
 	}
 	prefix := string(p.adapter) + "/"
+	var hosts []dbus.ObjectPath
 	for path, ifs := range objs {
 		le, ok := ifs["org.bluez.Bearer.LE1"]
 		if !ok || !strings.HasPrefix(string(path), prefix) {
@@ -332,11 +320,34 @@ func (p *Peripheral) bondedHostConnected() bool {
 		connected, _ := le["Connected"].Value().(bool)
 		bonded, _ := le["Bonded"].Value().(bool)
 		role, _ := le["Role"].Value().(string)
-		if connected && bonded && role == "central" { // the remote is the central: a host using us
-			return true
+		if connected && bonded && role == "central" {
+			hosts = append(hosts, path)
 		}
 	}
-	return false
+	return hosts
+}
+
+// HostName is the Bluetooth name of the host using us (e.g. "Chromebook_227F"
+// or "Pixel Tablet"), or "" when none is connected.
+func (p *Peripheral) HostName() string {
+	for _, h := range p.connectedHosts() {
+		if v, err := p.conn.Object(bluezBus, h).GetProperty(ifaceDevice + ".Alias"); err == nil {
+			if s, _ := v.Value().(string); s != "" {
+				return s
+			}
+		}
+	}
+	return ""
+}
+
+// disconnectHosts drops the links of connected hosts so they reconnect
+// cleanly: a host whose link outlived our GATT service (a restart) keeps a
+// stale view of it and its HID driver stops listening.
+func (p *Peripheral) disconnectHosts(why string) {
+	for _, h := range p.connectedHosts() {
+		Logf("disconnecting %s (%s)", h, why)
+		p.conn.Object(bluezBus, h).Call(ifaceDevice+".Disconnect", 0)
+	}
 }
 
 func (p *Peripheral) findAdapter() (dbus.ObjectPath, error) {
@@ -469,17 +480,17 @@ func (p *Peripheral) Start() error {
 		return fmt.Errorf("register advertisement: %w", err)
 	}
 	Logf("advertising as %q", p.name)
-	p.stop = make(chan struct{})
-	go p.watchHosts()
+	// A host still linked from a previous run would keep using its stale view
+	// of our service; make it reconnect to this one.
+	p.disconnectHosts("left over from a previous run")
 	return nil
 }
 
 // Stop unregisters everything from BlueZ. Bonds are kept.
 func (p *Peripheral) Stop() {
-	if p.stop != nil {
-		close(p.stop)
-		p.stop = nil
-	}
+	// Disconnect hosts before removing the service, so they see a clean
+	// disconnect and set up input again when we come back.
+	p.disconnectHosts("GhostKVM is stopping")
 	ad := p.conn.Object(bluezBus, p.adapter)
 	ad.Call(ifaceAdvMgr+".UnregisterAdvertisement", 0, advPath)
 	ad.Call(ifaceGattMgr+".UnregisterApplication", 0, appPath)

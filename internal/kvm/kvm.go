@@ -41,6 +41,7 @@ type KVM struct {
 	scr screen.Backend
 	ew  screen.EdgeWatcher // non-nil when the desktop reports edge crossings itself
 
+	peerDevice  string // Bluetooth name of the connected device, refreshed every 2s
 	watchedEdge string // last edge handed to ew.WatchEdge
 	edgeProblem string // why edge switching isn't working, for the UI
 	hotkey      keymap.Hotkey
@@ -126,6 +127,7 @@ func (k *KVM) Run(ctx context.Context) error {
 		return err
 	}
 	k.syncEdge()
+	k.refreshPeerDevice()
 	var acts <-chan screen.Activation
 	var deacts <-chan struct{}
 	if k.ew != nil {
@@ -152,7 +154,7 @@ func (k *KVM) Run(ctx context.Context) error {
 
 	if k.scr.EdgeSwitching() {
 		log.Printf("ready (%s): %s is %s of %s; push the mouse off that edge or press %s",
-			k.scr.Name(), k.cfg.Peer.Name, k.cfg.Peer.Side, k.mon.Name, k.cfg.Hotkey)
+			k.scr.Name(), k.peerName(), k.cfg.Peer.Side, k.mon.Name, k.cfg.Hotkey)
 	} else {
 		log.Printf("ready (%s): edge switching isn't available on this desktop; press %s or use the tray to switch",
 			k.scr.Name(), k.cfg.Hotkey)
@@ -180,7 +182,7 @@ func (k *KVM) Run(ctx context.Context) error {
 		case <-flush.C:
 			if k.remote {
 				if !k.hid.HostSubscribed() {
-					k.leaveRemote(k.cfg.Peer.Name + " disconnected")
+					k.leaveRemote(k.peerName() + " disconnected")
 					continue
 				}
 				k.flushMotion(false)
@@ -190,6 +192,7 @@ func (k *KVM) Run(ctx context.Context) error {
 		case <-deacts:
 			k.leaveRemote("the desktop ended the capture")
 		case <-rescan.C:
+			k.refreshPeerDevice()
 			k.scanDevices()
 			if !k.remote {
 				k.refreshMonitor()
@@ -271,6 +274,29 @@ func (k *KVM) grabAll(on bool) {
 	}
 }
 
+// hostNamer is implemented by HID outputs that know the connected device.
+type hostNamer interface{ HostName() string }
+
+func (k *KVM) refreshPeerDevice() {
+	if n, ok := k.hid.(hostNamer); ok && k.hid.HostSubscribed() {
+		k.peerDevice = n.HostName()
+	} else if !k.hid.HostSubscribed() {
+		k.peerDevice = ""
+	}
+}
+
+// PeerName is what to call the other device: the user's nickname, else its
+// Bluetooth name, else "other device".
+func (k *KVM) peerName() string {
+	switch {
+	case k.cfg.Peer.Name != "":
+		return k.cfg.Peer.Name
+	case k.peerDevice != "":
+		return k.peerDevice
+	}
+	return "other device"
+}
+
 // syncEdge tells an EdgeWatcher backend which edge to watch, when it changed.
 func (k *KVM) syncEdge() {
 	if k.ew == nil {
@@ -299,7 +325,7 @@ func (k *KVM) onActivation(a screen.Activation) {
 	reason := ""
 	switch {
 	case !k.hid.HostSubscribed():
-		reason = k.cfg.Peer.Name + " is not connected"
+		reason = k.peerName() + " is not connected"
 	case k.buttons != 0 || k.mods != 0 || len(k.keysDown) != 0:
 		reason = "a key or button is held"
 	}
@@ -560,7 +586,7 @@ func (k *KVM) enterRemote(frac float64, why string) {
 	}
 
 	k.placePeerPointer(frac)
-	log.Printf("-> %s (%s)", k.cfg.Peer.Name, why)
+	log.Printf("-> %s (%s)", k.peerName(), why)
 }
 
 // placePeerPointer pins the peer's pointer against the edge it enters from,

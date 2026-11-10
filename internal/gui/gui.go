@@ -143,7 +143,7 @@ func (a *App) buildHeader() fyne.CanvasObject {
 
 	title := widget.NewLabelWithStyle("GhostKVM", fyne.TextAlignLeading, fyne.TextStyle{Bold: true})
 	title.SizeName = theme.SizeNameHeadingText
-	sub := widget.NewLabel("One keyboard and mouse for this computer and your Chromebook")
+	sub := widget.NewLabel("One keyboard and mouse for this computer and any Bluetooth device")
 	sub.Importance = widget.LowImportance
 	sub.SizeName = theme.SizeNameCaptionText
 	brand := container.NewHBox(logo, container.New(&tightVBox{gap: -10}, title, sub))
@@ -178,13 +178,13 @@ func (a *App) buildLayoutCard() fyne.CanvasObject {
 	a.summary.Wrapping = fyne.TextWrapWord
 	a.summary.Importance = widget.LowImportance
 	editor := container.New(&minHeight{h: 300}, a.editor)
-	return newCard("Screen layout", "Drag the Chromebook to the side of your monitor where it sits on your desk.",
+	return newCard("Screen layout", "Drag the other device to the side of your monitor where it sits on your desk.",
 		container.NewBorder(nil, a.summary, nil, nil, editor))
 }
 
 func (a *App) buildPeerCard() fyne.CanvasObject {
 	a.nameEntry = widget.NewEntry()
-	a.nameEntry.SetPlaceHolder("chromebook")
+	a.nameEntry.SetPlaceHolder("Its Bluetooth name")
 	a.nameEntry.OnSubmitted = func(string) { a.commitName() }
 
 	a.widthEntry = widget.NewEntry()
@@ -218,10 +218,10 @@ func (a *App) buildPeerCard() fyne.CanvasObject {
 		a.apply(c)
 	}
 
-	return newCard("Chromebook", "", container.NewVBox(
-		field("Name", a.nameEntry, "Shown in the layout and the tray. Press Enter to save."),
-		field("Screen resolution", container.NewVBox(a.resSelect, a.customRes), "On the Chromebook: Settings › Device › Displays."),
-		field("Pointer speed", container.NewBorder(nil, nil, nil, fixedWidth(a.speedValue, 48), a.speedSlider), "Raise it if the pointer feels slow on the Chromebook."),
+	return newCard("Other device", "Anything that accepts a Bluetooth keyboard and mouse: a Chromebook, tablet, phone, Mac, PC or TV.", container.NewVBox(
+		field("Name", a.nameEntry, "Optional nickname. Leave empty to use its Bluetooth name. Press Enter to save."),
+		field("Screen resolution", container.NewVBox(a.resSelect, a.customRes), "From the device's display settings."),
+		field("Pointer speed", container.NewBorder(nil, nil, nil, fixedWidth(a.speedValue, 48), a.speedSlider), "Raise it if the pointer feels slow on the other device."),
 	))
 }
 
@@ -254,7 +254,7 @@ func (a *App) buildSwitchCard() fyne.CanvasObject {
 
 func (a *App) buildDevicesCard() fyne.CanvasObject {
 	a.deviceBox = container.NewVBox(widget.NewLabel("Looking for keyboards and mice…"))
-	return newCard("Devices", "Switched-on devices control the Chromebook while it has control. Turn one off to keep it on this computer only.", a.deviceBox)
+	return newCard("Devices", "Switched-on keyboards and mice control the other device while it has control. Turn one off to keep it on this computer only.", a.deviceBox)
 }
 
 func (a *App) buildFooter() fyne.CanvasObject {
@@ -447,7 +447,7 @@ func titleCase(s string) string {
 
 func (a *App) update(st kvm.Status) {
 	p := pal()
-	peer := st.Config.Peer.Name
+	peer := st.PeerName
 	peerTitle := titleCase(peer)
 
 	icon := iconDisconnected
@@ -455,7 +455,7 @@ func (a *App) update(st kvm.Status) {
 		a.linkPill.set(peerTitle+" connected", p.accent)
 		icon = iconConnected
 	} else {
-		a.linkPill.set("Waiting for "+peer, p.muted)
+		a.linkPill.set("Waiting for a device", p.muted)
 	}
 	if st.Mode == "peer" {
 		a.modePill.set("Control: "+peer, p.peer)
@@ -476,7 +476,7 @@ func (a *App) update(st kvm.Status) {
 	}
 
 	a.editor.set(st.Monitors, st.Config.Peer.Side, st.Config.Peer.Monitor,
-		st.Config.Peer.Width, st.Config.Peer.Height, peer, st.Mode == "peer")
+		st.Config.Peer.Width, st.Config.Peer.Height, peerTitle, st.Mode == "peer")
 	summary := fmt.Sprintf("%s is %s %s. Move the pointer off the %s edge to switch, or press %s.",
 		peerTitle, sideWord(st.Config.Peer.Side), st.Config.Peer.Monitor, st.Config.Peer.Side, st.Config.Hotkey)
 	if !st.EdgeSwitching {
@@ -488,7 +488,7 @@ func (a *App) update(st kvm.Status) {
 		summary = "Edge switching isn't working: " + st.EdgeProblem + ". Press " + st.Config.Hotkey + " to switch meanwhile."
 	}
 	if !st.Connected {
-		summary = fmt.Sprintf("Waiting for %s. On it, open Settings › Bluetooth and pair “%s”.", peer, st.Config.BluetoothName)
+		summary = fmt.Sprintf("Waiting for a device. On the computer, tablet or phone you want to control, open its Bluetooth settings and pair “%s”.", st.Config.BluetoothName)
 	}
 	if a.summary.Text != summary {
 		a.summary.SetText(summary)
@@ -496,7 +496,7 @@ func (a *App) update(st kvm.Status) {
 	a.updateDevices(st.Devices)
 
 	if a.desk != nil {
-		status := "Waiting for " + peer
+		status := "Waiting for a device"
 		if st.Connected {
 			status = peerTitle + " connected"
 		}

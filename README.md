@@ -5,8 +5,8 @@
 <h1 align="center">GhostKVM</h1>
 
 <p align="center">
-  One keyboard and mouse for your Linux desktop <b>and</b> your Chromebook.<br>
-  Push the pointer off the edge of your screen and keep working on the Chromebook, like an extra display.
+  One keyboard and mouse for your Linux desktop <b>and</b> your Chromebook, tablet, phone or any other Bluetooth device.<br>
+  Push the pointer off the edge of your screen and keep working on the other device, like an extra display.
 </p>
 
 <p align="center">
@@ -50,7 +50,9 @@ input for the whole system.
 
 GhostKVM needs **nothing on the Chromebook**. Your Linux desktop pretends to be a
 **Bluetooth keyboard and mouse**, so the Chromebook pairs with it like with any other
-wireless keyboard. When your pointer leaves the desktop's screen, GhostKVM captures
+wireless keyboard. That also means it works with **anything that accepts a Bluetooth
+keyboard and mouse**: Android tablets and phones, iPads, Macs, Windows PCs, TVs. The
+Chromebook is used as the example below. When your pointer leaves the desktop's screen, GhostKVM captures
 your real keyboard and mouse and sends them over that Bluetooth link instead.
 
 ```
@@ -71,7 +73,9 @@ your real keyboard and mouse and sends them over that Bluetooth link instead.
 - **Works like an extra display.** Place the Chromebook to the left, right, top or bottom
   of any monitor. Cross that edge and the pointer appears on the Chromebook at the same
   height; cross back and it returns.
-- **Nothing to install on the Chromebook.** It is a standard Bluetooth keyboard and mouse.
+- **Nothing to install on the other device.** It is a standard Bluetooth keyboard and mouse,
+  so it works with a Chromebook, tablet, phone, Mac, PC or TV. GhostKVM shows the device by
+  its own Bluetooth name.
 - **Keeps your other Bluetooth devices.** One adapter talks to your Bluetooth mouse and to
   the Chromebook at the same time.
 - **Hotkey** (`Ctrl+Alt+K` by default) switches from either computer and always brings

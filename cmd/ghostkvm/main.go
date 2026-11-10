@@ -1,5 +1,6 @@
-// ghostkvm shares this Hyprland desktop's keyboard and mouse with a peer
-// (e.g. a Chromebook) that sees the desktop as a Bluetooth keyboard+mouse.
+// ghostkvm shares this desktop's keyboard and mouse with another device (a
+// Chromebook, tablet, phone, Mac, PC...) that sees it as a Bluetooth keyboard
+// and mouse.
 // Push the mouse off the configured screen edge, or press the hotkey, to
 // move control to the peer; come back the same way.
 //

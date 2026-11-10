@@ -197,7 +197,7 @@ func run(k *kvm.KVM, r Request) (*kvm.Status, error) {
 
 	case "switch":
 		switch r.Target {
-		case "peer", "chromebook", "remote":
+		case "peer", "device", "remote", "chromebook":
 			return nil, k.SetMode(true)
 		case "desktop", "local", "here":
 			return nil, k.SetMode(false)
@@ -264,10 +264,10 @@ func Main(args []string) int {
 		}
 		control := "this computer"
 		if st.Mode == "peer" {
-			control = st.Config.Peer.Name
+			control = st.PeerName
 		}
 		fmt.Printf("%s: %s\ncontrol: %s\nlayout: %s of %s, %vx%v\n",
-			st.Config.Peer.Name, conn, control, st.Config.Peer.Side, st.Config.Peer.Monitor,
+			st.PeerName, conn, control, st.Config.Peer.Side, st.Config.Peer.Monitor,
 			st.Config.Peer.Width, st.Config.Peer.Height)
 	}
 	return 0
