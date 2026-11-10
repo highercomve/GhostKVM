@@ -6,7 +6,10 @@ import (
 	"github.com/highercomve/GhostKVM/internal/screen"
 )
 
-func TestWaylandDesktopsFallBackToHotkey(t *testing.T) {
+func TestWaylandWithoutPortalFallsBackToHotkey(t *testing.T) {
+	old := portalAvailable
+	portalAvailable = func() bool { return false }
+	t.Cleanup(func() { portalAvailable = old })
 	t.Setenv("HYPRLAND_INSTANCE_SIGNATURE", "")
 	t.Setenv("DISPLAY", ":0") // XWayland: must not be mistaken for an X session
 	t.Setenv("WAYLAND_DISPLAY", "wayland-0")

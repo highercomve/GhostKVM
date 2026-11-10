@@ -39,8 +39,9 @@ type Status struct {
 	Connected     bool             `json:"connected"`
 	Config        config.Config    `json:"config"`
 	Monitors      []screen.Monitor `json:"monitors"`
-	Desktop       string           `json:"desktop"`        // screen backend, e.g. "Hyprland", "X11", "GNOME (Wayland)"
-	EdgeSwitching bool             `json:"edge_switching"` // false: switch with the hotkey or tray
+	Desktop       string           `json:"desktop"`                // screen backend, e.g. "Hyprland", "X11", "GNOME (Wayland)"
+	EdgeSwitching bool             `json:"edge_switching"`         // false: switch with the hotkey or tray
+	EdgeProblem   string           `json:"edge_problem,omitempty"` // why edge switching isn\'t working right now
 	Devices       []DeviceInfo     `json:"devices"`
 }
 
@@ -58,6 +59,7 @@ func (k *KVM) Status() (Status, error) {
 		st.Monitors = append([]screen.Monitor(nil), k.monitors...)
 		st.Desktop = k.scr.Name()
 		st.EdgeSwitching = k.scr.EdgeSwitching()
+		st.EdgeProblem = k.edgeProblem
 		for path, d := range k.devices {
 			st.Devices = append(st.Devices, DeviceInfo{Path: path, Name: d.Name, Kind: kindOf(d), Used: true})
 		}
@@ -94,6 +96,7 @@ func (k *KVM) Apply(c config.Config) error {
 		*k.cfg = c
 		k.hotkey = hk
 		k.refreshMonitor()
+		k.syncEdge()
 		if ignoreChanged {
 			// Drop devices that are now ignored; re-examine everything else.
 			for path, d := range k.devices {

@@ -36,10 +36,14 @@ type devMsg struct {
 
 // KVM is the switching state machine. All state is owned by Run's goroutine.
 type KVM struct {
-	cfg    *config.Config
-	hid    HID
-	scr    screen.Backend
-	hotkey keymap.Hotkey
+	cfg *config.Config
+	hid HID
+	scr screen.Backend
+	ew  screen.EdgeWatcher // non-nil when the desktop reports edge crossings itself
+
+	watchedEdge string // last edge handed to ew.WatchEdge
+	edgeProblem string // why edge switching isn't working, for the UI
+	hotkey      keymap.Hotkey
 
 	devices map[string]*evdev.Device // open, captured-capable devices by path
 	skipped map[string]skipInfo      // paths we looked at and do not use
@@ -91,6 +95,11 @@ func kindOf(d *evdev.Device) string {
 	return ""
 }
 
+func edgeWatcher(scr screen.Backend) screen.EdgeWatcher {
+	ew, _ := scr.(screen.EdgeWatcher)
+	return ew
+}
+
 // New prepares a KVM. Call Run to start it.
 func New(cfg *config.Config, hid HID, scr screen.Backend) (*KVM, error) {
 	hk, err := keymap.ParseHotkey(cfg.Hotkey)
@@ -98,7 +107,7 @@ func New(cfg *config.Config, hid HID, scr screen.Backend) (*KVM, error) {
 		return nil, err
 	}
 	return &KVM{
-		cfg: cfg, hid: hid, scr: scr, hotkey: hk,
+		cfg: cfg, hid: hid, scr: scr, hotkey: hk, ew: edgeWatcher(scr),
 		devices:  map[string]*evdev.Device{},
 		skipped:  map[string]skipInfo{},
 		msgs:     make(chan devMsg, 256),
@@ -115,6 +124,12 @@ func (k *KVM) Run(ctx context.Context) error {
 	defer close(k.stopped)
 	if err := k.refreshMonitor(); err != nil {
 		return err
+	}
+	k.syncEdge()
+	var acts <-chan screen.Activation
+	var deacts <-chan struct{}
+	if k.ew != nil {
+		acts, deacts = k.ew.Activations(), k.ew.Deactivations()
 	}
 	k.scanDevices()
 	if len(k.devices) == 0 {
@@ -170,10 +185,15 @@ func (k *KVM) Run(ctx context.Context) error {
 				}
 				k.flushMotion(false)
 			}
+		case a := <-acts:
+			k.onActivation(a)
+		case <-deacts:
+			k.leaveRemote("the desktop ended the capture")
 		case <-rescan.C:
 			k.scanDevices()
 			if !k.remote {
 				k.refreshMonitor()
+				k.syncEdge()
 			}
 		}
 	}
@@ -249,6 +269,51 @@ func (k *KVM) grabAll(on bool) {
 			log.Print(err)
 		}
 	}
+}
+
+// syncEdge tells an EdgeWatcher backend which edge to watch, when it changed.
+func (k *KVM) syncEdge() {
+	if k.ew == nil {
+		return
+	}
+	key := fmt.Sprintf("%v|%s", k.mon, k.cfg.Peer.Side)
+	if key == k.watchedEdge {
+		return
+	}
+	if err := k.ew.WatchEdge(k.mon, k.cfg.Peer.Side); err != nil {
+		log.Printf("edge switching: %v", err)
+		k.edgeProblem = err.Error()
+		k.watchedEdge = ""
+		return
+	}
+	k.watchedEdge, k.edgeProblem = key, ""
+}
+
+// onActivation handles the desktop reporting that the pointer crossed the
+// watched edge. The desktop has captured input at this point, so when
+// GhostKVM can't switch it must hand input straight back.
+func (k *KVM) onActivation(a screen.Activation) {
+	if k.remote {
+		return
+	}
+	reason := ""
+	switch {
+	case !k.hid.HostSubscribed():
+		reason = k.cfg.Peer.Name + " is not connected"
+	case k.buttons != 0 || k.mods != 0 || len(k.keysDown) != 0:
+		reason = "a key or button is held"
+	}
+	if reason != "" {
+		m := k.mon
+		x := math.Max(m.X+3, math.Min(m.X+m.Width-4, a.X))
+		y := math.Max(m.Y+3, math.Min(m.Y+m.Height-4, a.Y))
+		if err := k.scr.MoveCursor(x, y); err != nil && !errors.Is(err, screen.ErrUnsupported) {
+			log.Printf("hand input back: %v", err)
+		}
+		log.Printf("edge reached but not switching: %s", reason)
+		return
+	}
+	k.enterRemote(k.fracAlongEdge(a.X, a.Y), "edge")
 }
 
 func (k *KVM) refreshMonitor() error {
@@ -424,7 +489,7 @@ func (k *KVM) handleMotion(dx, dy float64, wheel int) {
 	t := k.toward(dx, dy)
 	// Never switch mid-drag or with keys held: Hyprland would miss the
 	// release once we grab the devices, and the key would stay stuck.
-	if !k.scr.EdgeSwitching() || t <= 0 || k.buttons != 0 || k.mods != 0 || len(k.keysDown) != 0 || !k.hid.HostSubscribed() {
+	if !k.scr.EdgeSwitching() || k.ew != nil || t <= 0 || k.buttons != 0 || k.mods != 0 || len(k.keysDown) != 0 || !k.hid.HostSubscribed() {
 		k.push = 0
 		return
 	}

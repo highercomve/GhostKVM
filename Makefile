@@ -66,6 +66,8 @@ install-local: build ## Install to ~/.local with a launcher entry and icon
 	chmod 644 ~/.local/share/applications/ghostkvm.desktop
 	install -m 644 Icon.png ~/.local/share/icons/hicolor/256x256/apps/ghostkvm.png
 	install -m 644 assets/ghostkvm.svg ~/.local/share/icons/hicolor/scalable/apps/ghostkvm.svg
+	-update-desktop-database ~/.local/share/applications 2>/dev/null
+	-gtk-update-icon-cache -q -t ~/.local/share/icons/hicolor 2>/dev/null
 	@echo "Installed. Make sure ~/.local/bin is in your PATH to run: $(BINARY_NAME)"
 
 uninstall-local: ## Remove what install-local added

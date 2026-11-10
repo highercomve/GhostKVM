@@ -48,9 +48,9 @@ edge_push = 40
 # Input devices never captured (matched as a substring of the device name).
 ignore = ["ydotoold", "YubiKey", "AVRCP"]
 
-# How GhostKVM sees your screen: auto, hyprland, x11 or none. "auto" uses
-# Hyprland or X11 when available; other desktops (GNOME, KDE and Sway on
-# Wayland) switch with the hotkey and the tray instead of the screen edge.
+# How GhostKVM sees your screen: auto, hyprland, x11, portal or none. "auto"
+# uses Hyprland or X11 when available, then the Wayland InputCapture portal
+# (GNOME 45+, KDE Plasma 6.1+); other desktops switch with the hotkey and tray.
 screen_backend = "auto"
 
 [peer]

@@ -103,11 +103,15 @@ your real keyboard and mouse and sends them over that Bluetooth link instead.
 |---|---|---|
 | **Hyprland** | Push past the screen edge, hotkey or tray | Push past the Chromebook's edge, or the hotkey |
 | **X11 sessions:** GNOME or KDE on Xorg, XFCE, Cinnamon, MATE, i3… | Push past the screen edge, hotkey or tray | Push past the Chromebook's edge, or the hotkey |
-| **Wayland:** GNOME, KDE, Sway… | Hotkey or tray | Push past the Chromebook's edge, or the hotkey |
+| **Wayland with the InputCapture portal:** GNOME 45+, KDE Plasma 6.1+ | Push past the screen edge, hotkey or tray | Push past the Chromebook's edge, or the hotkey |
+| **Other Wayland desktops:** Sway, older GNOME or KDE… | Hotkey or tray | Push past the Chromebook's edge, or the hotkey |
 
-Wayland desktops such as GNOME and KDE don't let apps follow the pointer, so GhostKVM
-can't see you reach the edge there. Edge switching for them through the desktop's
-input-capture portal is on the roadmap. Set `screen_backend` to force a choice.
+Wayland doesn't let apps follow the pointer, so on GNOME and KDE GhostKVM asks the
+desktop, through the XDG **InputCapture portal**, to put a barrier on the Chromebook's
+edge and tell it when you cross. The first time, the desktop asks you to allow it; where
+the portal supports it, that permission is remembered. The edge must be an outer edge
+of your screens. Set `screen_backend` (`auto`, `hyprland`, `x11`, `portal`, `none`) to
+force a choice.
 
 ## Install
 
@@ -256,7 +260,7 @@ the keyboard and mouse back to the desktop.
 |---|---|
 | [`internal/blehid`](internal/blehid) | Registers a HID-over-GATT service and advertisement with BlueZ over D-Bus, so the adapter appears as a BLE keyboard and mouse |
 | [`internal/evdev`](internal/evdev) | Reads `/dev/input` devices and grabs them exclusively while the Chromebook has control, so the desktop stops reacting |
-| [`internal/screen`](internal/screen) | The desktop side: monitors, cursor position, moving and hiding the cursor, with backends for Hyprland, X11 and a hotkey-only fallback |
+| [`internal/screen`](internal/screen) | The desktop side: monitors, cursor position, moving and hiding the cursor, with backends for Hyprland, X11, the Wayland InputCapture portal (with a small pure-Go EI client) and a hotkey-only fallback |
 | [`internal/ctl`](internal/ctl) | The control socket and `ghostkvm ctl` |
 | [`internal/update`](internal/update) | The signed self-updater; [`tools/updater`](tools/updater) signs releases |
 | [`internal/kvm`](internal/kvm) | The switching state machine: edge detection, tracking the Chromebook's pointer, forwarding keys and motion |
@@ -296,7 +300,6 @@ the release.
 
 - Clipboard sharing between the desktop and the Chromebook
 - Media and volume keys
-- Edge switching on GNOME and KDE Wayland through the input-capture portal
 - Windows and macOS on the desktop side, through a small USB dongle (they don't allow acting as a Bluetooth keyboard)
 
 ## License

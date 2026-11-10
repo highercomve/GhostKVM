@@ -484,6 +484,9 @@ func (a *App) update(st kvm.Status) {
 		summary = fmt.Sprintf("%s doesn't let apps follow the pointer, so switch to the %s with %s or the tray. To come back, push past the %s's %s edge or press %s again.",
 			st.Desktop, peer, st.Config.Hotkey, peer, back, st.Config.Hotkey)
 	}
+	if st.EdgeProblem != "" {
+		summary = "Edge switching isn't working: " + st.EdgeProblem + ". Press " + st.Config.Hotkey + " to switch meanwhile."
+	}
 	if !st.Connected {
 		summary = fmt.Sprintf("Waiting for %s. On it, open Settings › Bluetooth and pair “%s”.", peer, st.Config.BluetoothName)
 	}

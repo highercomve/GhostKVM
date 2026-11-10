@@ -55,3 +55,20 @@ func (None) CursorPos() (float64, float64, error) { return 0, 0, ErrUnsupported 
 func (None) MoveCursor(float64, float64) error    { return ErrUnsupported }
 func (None) HideCursor() error                    { return nil }
 func (None) ShowCursor() error                    { return nil }
+
+// Activation is the desktop reporting that the pointer crossed the edge
+// GhostKVM watches, with the cursor position at that moment.
+type Activation struct{ X, Y float64 }
+
+// EdgeWatcher is implemented by backends where the desktop itself detects
+// the pointer reaching an edge (the Wayland InputCapture portal), instead of
+// GhostKVM polling CursorPos. While an activation is active the desktop has
+// captured input; MoveCursor hands it back and places the cursor.
+type EdgeWatcher interface {
+	// WatchEdge sets the edge to watch: the given side of mon.
+	WatchEdge(mon Monitor, side string) error
+	// Activations reports each crossing.
+	Activations() <-chan Activation
+	// Deactivations reports the desktop ending a capture on its own.
+	Deactivations() <-chan struct{}
+}
