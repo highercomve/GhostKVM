@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="64" height="64">
+  <!-- Tray icon: a simple upright ghost, sized and weighted like other panel
+       icons. @COLOR@ is replaced per state by make icons; the eyes are cut out
+       so the panel shows through. -->
+  <defs>
+    <mask id="eyes">
+      <rect width="24" height="24" fill="white"/>
+      <ellipse cx="9.2" cy="10.6" rx="1.7" ry="2.2" fill="black"/>
+      <ellipse cx="14.8" cy="10.6" rx="1.7" ry="2.2" fill="black"/>
+    </mask>
+  </defs>
+  <path mask="url(#eyes)" fill="@COLOR@" d="M4 10.5 A8 8 0 0 1 20 10.5 V20.6 Q18.67 22.7 17.33 20.6 Q16 18.5 14.67 20.6 Q13.33 22.7 12 20.6 Q10.67 18.5 9.33 20.6 Q8 22.7 6.67 20.6 Q5.33 18.5 4 20.6 Z"/>
+</svg>

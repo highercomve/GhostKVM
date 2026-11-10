@@ -1,0 +1,6 @@
+[Details]
+  Icon = "Icon.png"
+  Name = "GhostKVM"
+  ID = "io.ghostkvm.app"
+  Version = "0.1.0"
+  Build = 1
