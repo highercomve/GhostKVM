@@ -19,7 +19,8 @@
 <p align="center">
   <a href="LICENSE.md"><img alt="License: PolyForm Noncommercial 1.0.0" src="https://img.shields.io/badge/license-PolyForm%20Noncommercial-blue"></a>
   <img alt="Go" src="https://img.shields.io/badge/go-1.25-00ADD8">
-  <img alt="Linux · Hyprland" src="https://img.shields.io/badge/desktop-Linux%20·%20Hyprland-2EC495">
+  <img alt="Linux" src="https://img.shields.io/badge/desktop-Linux-2EC495">
+  <a href="https://github.com/highercomve/GhostKVM/releases/latest"><img alt="Latest release" src="https://img.shields.io/github/v/release/highercomve/GhostKVM?color=2EC495"></a>
 </p>
 
 ---
@@ -53,7 +54,7 @@ wireless keyboard. When your pointer leaves the desktop's screen, GhostKVM captu
 your real keyboard and mouse and sends them over that Bluetooth link instead.
 
 ```
- Linux desktop (Hyprland)                          Chromebook
+ Linux desktop                                     Chromebook
 ┌───────────────────────────────┐               ┌────────────────────┐
 │  your keyboard + mouse        │               │                    │
 │        │                      │   Bluetooth   │  sees a normal     │
@@ -61,7 +62,7 @@ your real keyboard and mouse and sends them over that Bluetooth link instead.
 │  GhostKVM ── pointer at edge? ├──────────────▶│  and mouse         │
 │        │        no            │   (HID over   │                    │
 │        ▼                      │    GATT)      │                    │
-│  Hyprland as usual            │               │                    │
+│  your desktop as usual        │               │                    │
 └───────────────────────────────┘               └────────────────────┘
 ```
 
@@ -90,25 +91,58 @@ your real keyboard and mouse and sends them over that Bluetooth link instead.
 
 | | |
 |---|---|
-| **Desktop** | Linux with [Hyprland](https://hyprland.org) 0.55 or newer (uses its Lua IPC) |
+| **Desktop** | Any Linux desktop. See [Desktops](#desktops) for which ones switch at the screen edge |
 | **Bluetooth** | BlueZ 5.x and an adapter that supports the LE peripheral role (most from the last few years do; tested with an Intel AX210) |
 | **Permissions** | Your user in the `input` group, to read keyboards and mice. No root needed. |
 | **Other computer** | A Chromebook, or anything else that accepts a Bluetooth LE keyboard and mouse |
-| **Building** | Go 1.25+, a C compiler, and the OpenGL/X11 headers Fyne needs (`libgl`, `libx11`, `libxcursor`, `libxrandr`, `libxinerama`, `libxi`, `libxxf86vm`) |
+| **Building** (only from source) | Go 1.26+, a C compiler, and the OpenGL/X11 headers Fyne needs (`libgl`, `libx11`, `libxcursor`, `libxrandr`, `libxinerama`, `libxi`, `libxxf86vm`) |
+
+### Desktops
+
+| Desktop | Switch to the Chromebook | Come back |
+|---|---|---|
+| **Hyprland** | Push past the screen edge, hotkey or tray | Push past the Chromebook's edge, or the hotkey |
+| **X11 sessions:** GNOME or KDE on Xorg, XFCE, Cinnamon, MATE, i3… | Push past the screen edge, hotkey or tray | Push past the Chromebook's edge, or the hotkey |
+| **Wayland:** GNOME, KDE, Sway… | Hotkey or tray | Push past the Chromebook's edge, or the hotkey |
+
+Wayland desktops such as GNOME and KDE don't let apps follow the pointer, so GhostKVM
+can't see you reach the edge there. Edge switching for them through the desktop's
+input-capture portal is on the roadmap. Set `screen_backend` to force a choice.
 
 ## Install
+
+Download the latest release for x86_64 or aarch64 from
+**[Releases](https://github.com/highercomve/GhostKVM/releases/latest)**:
+
+| File | For | Updates |
+|---|---|---|
+| `ghostkvm-linux-<arch>.tar.xz` | any distribution | **updates itself** |
+| `ghostkvm_<version>_<arch>.deb` | Debian, Ubuntu, Pop!_OS… | through your package manager |
+| `ghostkvm-<version>.<arch>.rpm` | Fedora, openSUSE… | through your package manager |
+| `ghostkvm-<version>-<arch>.pkg.tar.zst` | Arch, Manjaro… | through your package manager |
+
+With the tarball:
+
+```bash
+tar -xJf ghostkvm-linux-x86_64.tar.xz
+install -Dm755 ghostkvm-linux-x86_64/bin/ghostkvm ~/.local/bin/ghostkvm
+```
+
+Or build from source (`make install-local` also adds a launcher entry and icon):
 
 ```bash
 git clone https://github.com/highercomve/GhostKVM.git
 cd GhostKVM
-make install-local   # builds, installs to ~/.local/bin, adds a launcher entry and icon
+make install-local
 ```
 
-Or install only the binary:
+### Updates
 
-```bash
-go install github.com/highercomve/GhostKVM/cmd/ghostkvm@latest
-```
+GhostKVM checks for a new release once a day. When one is out, an **Update** button
+appears in the window and the tray: it downloads the release, checks its signature
+against the key built into GhostKVM, replaces itself and restarts. Copies installed from
+a `.deb`, `.rpm` or Arch package are updated by your package manager instead.
+Development builds never update themselves.
 
 Make sure your user can read input devices:
 
@@ -124,8 +158,9 @@ groups | grep -q input || sudo usermod -aG input "$USER"   # then log out and ba
    reconnects by itself whenever GhostKVM is running.
 3. **Place it.** In the GhostKVM window, drag the Chromebook to the side of your monitor
    where it sits on your desk, and pick its screen resolution.
-4. **Move the pointer off that edge.** You are now on the Chromebook. Come back the same
-   way, or press `Ctrl+Alt+K`.
+4. **Move the pointer off that edge** (or press `Ctrl+Alt+K` on desktops without edge
+   switching). You are now on the Chromebook. Come back by pushing past its edge, or press
+   `Ctrl+Alt+K`.
 
 > [!TIP]
 > On the Chromebook, turn off **Settings › Device › Mouse › Mouse acceleration**. GhostKVM
@@ -134,7 +169,14 @@ groups | grep -q input || sudo usermod -aG input "$USER"   # then log out and ba
 
 ### Run it at login
 
-Add it to your Hyprland config so the tray icon is always there:
+Most desktops start apps listed in `~/.config/autostart`:
+
+```bash
+mkdir -p ~/.config/autostart
+cp ~/.local/share/applications/ghostkvm.desktop ~/.config/autostart/   # or /usr/share/applications/ from a package
+```
+
+On Hyprland, add it to your config instead:
 
 ```lua
 -- ~/.config/hypr/hyprland.lua
@@ -145,6 +187,27 @@ end)
 
 `ghostkvm -headless` runs without the window and tray, for example from a systemd user
 service.
+
+## Drive the Chromebook from scripts
+
+`ghostkvm ctl` sends keys and mouse actions to the Chromebook through the running
+GhostKVM, while your own keyboard and mouse stay on the desktop. Use it from scripts or
+automation tools such as desktopctrl and AI agents.
+
+```bash
+ghostkvm ctl status                 # connected? who has control?
+ghostkvm ctl key search             # open the ChromeOS launcher
+ghostkvm ctl type "chrome://settings"
+ghostkvm ctl key Return
+ghostkvm ctl moveto 960 540         # absolute, in Chromebook pixels
+ghostkvm ctl click                  # also: doubleclick, scroll -3, move 40 0
+ghostkvm ctl switch peer            # give your keyboard and mouse to the Chromebook
+```
+
+The control socket lives at `$XDG_RUNTIME_DIR/ghostkvm/ctl.sock` and only your user can
+open it. Commands are sent blind: Bluetooth carries input to the Chromebook, not its
+screen back. `type` assumes the Chromebook uses a US keyboard layout, and `moveto` needs
+its mouse acceleration off.
 
 ## Configuration
 
@@ -192,8 +255,10 @@ the keyboard and mouse back to the desktop.
 | Part | What it does |
 |---|---|
 | [`internal/blehid`](internal/blehid) | Registers a HID-over-GATT service and advertisement with BlueZ over D-Bus, so the adapter appears as a BLE keyboard and mouse |
-| [`internal/evdev`](internal/evdev) | Reads `/dev/input` devices and grabs them exclusively while the Chromebook has control, so Hyprland stops reacting |
-| [`internal/hypr`](internal/hypr) | Talks to Hyprland's IPC socket: monitors, cursor position, moving and hiding the cursor |
+| [`internal/evdev`](internal/evdev) | Reads `/dev/input` devices and grabs them exclusively while the Chromebook has control, so the desktop stops reacting |
+| [`internal/screen`](internal/screen) | The desktop side: monitors, cursor position, moving and hiding the cursor, with backends for Hyprland, X11 and a hotkey-only fallback |
+| [`internal/ctl`](internal/ctl) | The control socket and `ghostkvm ctl` |
+| [`internal/update`](internal/update) | The signed self-updater; [`tools/updater`](tools/updater) signs releases |
 | [`internal/kvm`](internal/kvm) | The switching state machine: edge detection, tracking the Chromebook's pointer, forwarding keys and motion |
 | [`internal/gui`](internal/gui) | The Fyne window and tray icon |
 | [`cmd/ghostkvm-bletest`](cmd/ghostkvm-bletest) | A small static test that only advertises the keyboard and mouse and moves the remote pointer in a square |
@@ -207,17 +272,32 @@ edge it comes in from and then tracks every movement it sends.
 make build     # bin/ghostkvm
 make run       # build and start
 make vet       # go vet ./...
+make test      # go test ./... (the X11 test uses Xvfb when installed)
 make icons     # re-render the PNG icons from assets/*.svg (needs rsvg-convert)
 make screenshots   # re-render docs/images/app*.png from the real UI with sample data
 cd site && hugo server   # preview the website at http://localhost:1313/GhostKVM/
 make bletest   # bin/ghostkvm-bletest, a static binary for testing an adapter
+make release-tarball packages   # what CI builds: the .tar.xz plus .deb, .rpm and Arch packages
 ```
+
+### Releasing
+
+Add a `## vX.Y.Z` section to [CHANGELOG.md](CHANGELOG.md), then tag and push:
+
+```bash
+git tag v0.1.0 && git push origin v0.1.0
+```
+
+The [release workflow](.github/workflows/release.yml) builds x86_64 and aarch64, signs the
+update bundles with the `UPDATER_PRIVATE_KEY` secret, writes `latest.json` and publishes
+the release.
 
 ## Roadmap
 
 - Clipboard sharing between the desktop and the Chromebook
 - Media and volume keys
-- Desktops other than Hyprland
+- Edge switching on GNOME and KDE Wayland through the input-capture portal
+- Windows and macOS on the desktop side, through a small USB dongle (they don't allow acting as a Bluetooth keyboard)
 
 ## License
 

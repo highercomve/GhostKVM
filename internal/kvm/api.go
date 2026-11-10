@@ -5,8 +5,8 @@ import (
 	"sort"
 
 	"github.com/highercomve/GhostKVM/internal/config"
-	"github.com/highercomve/GhostKVM/internal/hypr"
 	"github.com/highercomve/GhostKVM/internal/keymap"
+	"github.com/highercomve/GhostKVM/internal/screen"
 )
 
 // ErrStopped is returned by the API once Run has returned.
@@ -35,11 +35,13 @@ type DeviceInfo struct {
 
 // Status is a snapshot of the KVM for the UI.
 type Status struct {
-	Mode      string         `json:"mode"` // "desktop" or "peer"
-	Connected bool           `json:"connected"`
-	Config    config.Config  `json:"config"`
-	Monitors  []hypr.Monitor `json:"monitors"`
-	Devices   []DeviceInfo   `json:"devices"`
+	Mode          string           `json:"mode"` // "desktop" or "peer"
+	Connected     bool             `json:"connected"`
+	Config        config.Config    `json:"config"`
+	Monitors      []screen.Monitor `json:"monitors"`
+	Desktop       string           `json:"desktop"`        // screen backend, e.g. "Hyprland", "X11", "GNOME (Wayland)"
+	EdgeSwitching bool             `json:"edge_switching"` // false: switch with the hotkey or tray
+	Devices       []DeviceInfo     `json:"devices"`
 }
 
 // Status returns the current state.
@@ -53,7 +55,9 @@ func (k *KVM) Status() (Status, error) {
 		st.Connected = k.hid.HostSubscribed()
 		st.Config = *k.cfg
 		st.Config.Ignore = append([]string(nil), k.cfg.Ignore...)
-		st.Monitors = append([]hypr.Monitor(nil), k.monitors...)
+		st.Monitors = append([]screen.Monitor(nil), k.monitors...)
+		st.Desktop = k.scr.Name()
+		st.EdgeSwitching = k.scr.EdgeSwitching()
 		for path, d := range k.devices {
 			st.Devices = append(st.Devices, DeviceInfo{Path: path, Name: d.Name, Kind: kindOf(d), Used: true})
 		}
@@ -134,3 +138,64 @@ func equalStrings(a, b []string) bool {
 	}
 	return true
 }
+
+// ---------------------------------------------------------------- control API
+
+// ErrNotConnected is returned when the peer is not subscribed to input.
+var ErrNotConnected = errors.New("the other computer is not connected")
+
+// PeerHID gives direct access to the peer's keyboard and mouse, for the
+// control socket. Reports sent through it reach the peer whichever computer
+// currently has the user's keyboard and mouse.
+func (k *KVM) PeerHID() HID { return k.hid }
+
+// MovePeerTo puts the peer's pointer at (x, y) in peer pixels: it pins the
+// pointer to the top-left corner, then moves it. Accurate when the peer has
+// mouse acceleration off.
+func (k *KVM) MovePeerTo(x, y float64) error {
+	if !k.hid.HostSubscribed() {
+		return ErrNotConnected
+	}
+	return k.do(func() {
+		W, H := k.cfg.Peer.Width, k.cfg.Peer.Height
+		x, y = clampF(x, 0, W-1), clampF(y, 0, H-1)
+		big := 2 * max(W, H)
+		k.sendMove(-big, -big)
+		k.sendMove(x, y)
+		k.vx, k.vy = x, y
+	})
+}
+
+// MovePeerBy moves the peer's pointer by (dx, dy) peer pixels.
+func (k *KVM) MovePeerBy(dx, dy float64) error {
+	if !k.hid.HostSubscribed() {
+		return ErrNotConnected
+	}
+	return k.do(func() {
+		k.sendMove(dx, dy)
+		k.vx = clampF(k.vx+dx, 0, k.cfg.Peer.Width-1)
+		k.vy = clampF(k.vy+dy, 0, k.cfg.Peer.Height-1)
+	})
+}
+
+// SetMode gives the user's keyboard and mouse to the peer (true) or back
+// to this computer (false).
+func (k *KVM) SetMode(peer bool) error {
+	var err error
+	if e := k.do(func() {
+		switch {
+		case peer == k.remote:
+		case !peer:
+			k.leaveRemote("control socket")
+		case !k.hid.HostSubscribed():
+			err = ErrNotConnected
+		default:
+			k.enterRemote(0.5, "control socket")
+		}
+	}); e != nil {
+		return e
+	}
+	return err
+}
+
+func clampF(v, lo, hi float64) float64 { return max(lo, min(hi, v)) }

@@ -26,8 +26,9 @@ type Peer struct {
 type Config struct {
 	BluetoothName string   `toml:"bluetooth_name" json:"bluetooth_name"`
 	Hotkey        string   `toml:"hotkey" json:"hotkey"`
-	EdgePush      float64  `toml:"edge_push" json:"edge_push"` // how far to keep pushing past an edge before switching
-	Ignore        []string `toml:"ignore" json:"ignore"`       // input device names (substring) never grabbed
+	EdgePush      float64  `toml:"edge_push" json:"edge_push"`                               // how far to keep pushing past an edge before switching
+	Ignore        []string `toml:"ignore" json:"ignore"`                                     // input device names (substring) never grabbed
+	ScreenBackend string   `toml:"screen_backend,omitempty" json:"screen_backend,omitempty"` // auto | hyprland | x11 | none
 	Peer          Peer     `toml:"peer" json:"peer"`
 }
 
@@ -46,6 +47,11 @@ edge_push = 40
 
 # Input devices never captured (matched as a substring of the device name).
 ignore = ["ydotoold", "YubiKey", "AVRCP"]
+
+# How GhostKVM sees your screen: auto, hyprland, x11 or none. "auto" uses
+# Hyprland or X11 when available; other desktops (GNOME, KDE and Sway on
+# Wayland) switch with the hotkey and the tray instead of the screen edge.
+screen_backend = "auto"
 
 [peer]
 name    = "chromebook"

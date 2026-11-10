@@ -1,0 +1,161 @@
+name: Build and Release
+
+# Every push and pull request: vet, test and build for x86_64 and aarch64.
+# A v* tag also signs the update bundles, writes latest.json for the
+# self-updater and publishes the GitHub release.
+on:
+  push:
+    branches: [main]
+    tags: ['v*']
+    paths-ignore: ['site/**', '.github/workflows/pages.yml']
+  pull_request:
+    branches: [main]
+    paths-ignore: ['site/**', '.github/workflows/pages.yml']
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  test:
+    name: Vet and test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+          cache: true
+
+      - name: Install GUI build dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends libgl1-mesa-dev xorg-dev libxkbcommon-dev xvfb
+
+      - name: Vet
+        run: make vet
+
+      - name: Test
+        run: make test   # includes the X11 backend test against Xvfb
+
+  build:
+    name: Build ${{ matrix.arch }}
+    needs: test
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - arch: x86_64
+            runner: ubuntu-latest
+          - arch: aarch64
+            runner: ubuntu-24.04-arm
+    runs-on: ${{ matrix.runner }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+          cache: true
+
+      - name: Install build dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends libgl1-mesa-dev xorg-dev libxkbcommon-dev gettext-base
+          go install github.com/goreleaser/nfpm/v2/cmd/nfpm@v2.48.0
+
+      - name: Determine version
+        id: version
+        run: |
+          if [[ "$GITHUB_REF" == refs/tags/v* ]]; then
+            VERSION="${GITHUB_REF_NAME}"
+          else
+            # Not a release version: these builds never self-update.
+            VERSION="0.0.0-${GITHUB_SHA::8}"
+          fi
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+          echo "Building $VERSION for ${{ matrix.arch }}"
+
+      - name: Build tarball and packages
+        run: |
+          make release-tarball ARCH=${{ matrix.arch }} VERSION=${{ steps.version.outputs.version }}
+          make packages ARCH=${{ matrix.arch }} VERSION=${{ steps.version.outputs.version }}
+
+      - name: Smoke test
+        run: |
+          bin/ghostkvm ctl help 2>&1 | grep -q "ghostkvm ctl" || { echo "ctl help failed"; exit 1; }
+          # No GhostKVM is running on the runner: ctl must say so and fail.
+          if bin/ghostkvm ctl status; then echo "ctl status should fail without a running GhostKVM"; exit 1; fi
+          tar -tJf release/ghostkvm-linux-${{ matrix.arch }}.tar.xz | grep -q "/bin/ghostkvm$"
+
+      - name: List release files
+        run: ls -la release/
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: release-${{ matrix.arch }}
+          path: |
+            release/*.tar.xz
+            release/*.deb
+            release/*.rpm
+            release/*.pkg.tar.zst
+          if-no-files-found: error
+          retention-days: 7
+
+  release:
+    name: Publish release
+    needs: build
+    if: startsWith(github.ref, 'refs/tags/v')
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+          cache: true
+
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: release-*
+          path: release/
+          merge-multiple: true
+
+      - name: List release files
+        run: ls -la release/
+
+      # Self-updater: sign each update bundle with the minisign key and write
+      # latest.json (Tauri format), read by the app from releases/latest.
+      # Pre-releases are not signed, so installed copies never move to them.
+      - name: Sign update bundles
+        if: ${{ !contains(github.ref, '-rc') && !contains(github.ref, '-beta') && !contains(github.ref, '-alpha') }}
+        env:
+          UPDATER_PRIVATE_KEY: ${{ secrets.UPDATER_PRIVATE_KEY }}
+        run: |
+          go run ./tools/updater \
+            --version "${GITHUB_REF_NAME}" \
+            --base-url "https://github.com/${{ github.repository }}/releases/download/${GITHUB_REF_NAME}" \
+            --changelog CHANGELOG.md \
+            --out release/latest.json \
+            release/*
+
+      - name: Create release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            release/*.tar.xz
+            release/*.tar.xz.sig
+            release/*.deb
+            release/*.rpm
+            release/*.pkg.tar.zst
+            release/latest.json
+          fail_on_unmatched_files: false
+          generate_release_notes: true
+          prerelease: ${{ contains(github.ref, '-rc') || contains(github.ref, '-beta') || contains(github.ref, '-alpha') }}

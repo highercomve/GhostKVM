@@ -21,6 +21,7 @@ import (
 
 	"github.com/highercomve/GhostKVM/internal/config"
 	"github.com/highercomve/GhostKVM/internal/kvm"
+	"github.com/highercomve/GhostKVM/internal/update"
 	"github.com/highercomve/GhostKVM/internal/version"
 )
 
@@ -40,6 +41,9 @@ type App struct {
 	switchBtn *widget.Button
 	savedNote *widget.Label
 	savedAt   time.Time
+	updateBtn *widget.Button
+
+	pendingUpdate *update.Release
 
 	// layout
 	editor  *layoutEditor
@@ -66,6 +70,7 @@ type App struct {
 	// tray
 	trayStatus *fyne.MenuItem
 	traySwitch *fyne.MenuItem
+	trayUpdate *fyne.MenuItem
 	trayMenu   *fyne.Menu
 	lastIcon   fyne.Resource
 
@@ -109,6 +114,7 @@ func Run(k *kvm.KVM, cfgPath string, onQuit func()) {
 
 	stop := make(chan struct{})
 	go a.poll(stop)
+	a.maybeCheckForUpdates()
 	a.fa.Lifecycle().SetOnStopped(func() {
 		close(stop)
 		onQuit()
@@ -149,8 +155,11 @@ func (a *App) buildHeader() fyne.CanvasObject {
 	a.savedNote.SizeName = theme.SizeNameCaptionText
 	a.switchBtn = widget.NewButtonWithIcon("Switch", theme.ViewRefreshIcon(), a.toggle)
 	a.switchBtn.Importance = widget.HighImportance
+	a.updateBtn = widget.NewButtonWithIcon("Update", theme.DownloadIcon(), a.showUpdateDialog)
+	a.updateBtn.Importance = widget.WarningImportance
+	a.updateBtn.Hide()
 
-	right := container.NewHBox(a.savedNote, container.NewCenter(a.linkPill), container.NewCenter(a.modePill), container.NewCenter(a.switchBtn))
+	right := container.NewHBox(a.savedNote, container.NewCenter(a.updateBtn), container.NewCenter(a.linkPill), container.NewCenter(a.modePill), container.NewCenter(a.switchBtn))
 	bar := container.NewBorder(nil, nil, brand, right)
 
 	bg := canvas.NewRectangle(pal().card)
@@ -258,7 +267,9 @@ func (a *App) buildFooter() fyne.CanvasObject {
 	l.SizeName = theme.SizeNameCaptionText
 	l.Alignment = fyne.TextAlignCenter
 	l.Truncation = fyne.TextTruncateEllipsis
-	return l
+	check := widget.NewButton("Check for updates", func() { go a.checkForUpdates(true) })
+	check.Importance = widget.LowImportance
+	return container.NewVBox(l, container.NewCenter(check))
 }
 
 // minHeight keeps a child at least h tall.
@@ -305,7 +316,14 @@ func (a *App) setupTray() {
 	a.trayStatus.Disabled = true
 	a.traySwitch = fyne.NewMenuItem("Switch", a.toggle)
 	open := fyne.NewMenuItem("Open GhostKVM", func() { a.win.Show(); a.win.RequestFocus() })
-	a.trayMenu = fyne.NewMenu("GhostKVM", a.trayStatus, a.traySwitch, fyne.NewMenuItemSeparator(), open)
+	a.trayUpdate = fyne.NewMenuItem("Check for updates…", func() {
+		if a.pendingUpdate != nil {
+			a.showUpdateDialog()
+		} else {
+			go a.checkForUpdates(true)
+		}
+	})
+	a.trayMenu = fyne.NewMenu("GhostKVM", a.trayStatus, a.traySwitch, fyne.NewMenuItemSeparator(), open, a.trayUpdate)
 	a.desk.SetSystemTrayMenu(a.trayMenu)
 	a.desk.SetSystemTrayIcon(iconDisconnected)
 	a.lastIcon = iconDisconnected
@@ -461,6 +479,11 @@ func (a *App) update(st kvm.Status) {
 		st.Config.Peer.Width, st.Config.Peer.Height, peer, st.Mode == "peer")
 	summary := fmt.Sprintf("%s is %s %s. Move the pointer off the %s edge to switch, or press %s.",
 		peerTitle, sideWord(st.Config.Peer.Side), st.Config.Peer.Monitor, st.Config.Peer.Side, st.Config.Hotkey)
+	if !st.EdgeSwitching {
+		back := map[string]string{"left": "right", "right": "left", "top": "bottom", "bottom": "top"}[st.Config.Peer.Side]
+		summary = fmt.Sprintf("%s doesn't let apps follow the pointer, so switch to the %s with %s or the tray. To come back, push past the %s's %s edge or press %s again.",
+			st.Desktop, peer, st.Config.Hotkey, peer, back, st.Config.Hotkey)
+	}
 	if !st.Connected {
 		summary = fmt.Sprintf("Waiting for %s. On it, open Settings › Bluetooth and pair “%s”.", peer, st.Config.BluetoothName)
 	}

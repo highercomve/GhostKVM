@@ -1,5 +1,5 @@
-// Package hypr talks to Hyprland over its IPC socket.
-package hypr
+// Package hyprland is the screen backend for Hyprland, over its IPC socket.
+package hyprland
 
 import (
 	"encoding/json"
@@ -10,10 +10,33 @@ import (
 	"path/filepath"
 	"strings"
 	"time"
+
+	"github.com/highercomve/GhostKVM/internal/screen"
 )
 
 // Client sends requests to one Hyprland instance.
-type Client struct{ socket string }
+type Client struct {
+	socket       string
+	savedTimeout float64
+}
+
+var _ screen.Backend = (*Client)(nil)
+
+func (c *Client) Name() string        { return "Hyprland" }
+func (c *Client) EdgeSwitching() bool { return true }
+
+// HideCursor makes Hyprland hide the cursor almost at once: while GhostKVM
+// holds the input devices Hyprland sees no motion, so a short inactivity
+// timeout hides it.
+func (c *Client) HideCursor() error {
+	if t, err := c.InactiveTimeout(); err == nil {
+		c.savedTimeout = t
+	}
+	return c.SetInactiveTimeout(0.2)
+}
+
+// ShowCursor restores the user's own timeout.
+func (c *Client) ShowCursor() error { return c.SetInactiveTimeout(c.savedTimeout) }
 
 // New finds the running Hyprland instance (from HYPRLAND_INSTANCE_SIGNATURE,
 // or the first one under $XDG_RUNTIME_DIR/hypr when run outside the session).
@@ -48,17 +71,8 @@ func (c *Client) request(cmd string) ([]byte, error) {
 	return io.ReadAll(conn)
 }
 
-// Monitor is one output in global layout coordinates (logical pixels).
-type Monitor struct {
-	Name   string  `json:"name"`
-	X      float64 `json:"x"`
-	Y      float64 `json:"y"`
-	Width  float64 `json:"width"` // logical size (pixels / scale)
-	Height float64 `json:"height"`
-}
-
 // Monitors lists the active outputs.
-func (c *Client) Monitors() ([]Monitor, error) {
+func (c *Client) Monitors() ([]screen.Monitor, error) {
 	out, err := c.request("j/monitors")
 	if err != nil {
 		return nil, err
@@ -75,7 +89,7 @@ func (c *Client) Monitors() ([]Monitor, error) {
 	if err := json.Unmarshal(out, &raw); err != nil {
 		return nil, fmt.Errorf("parse monitors: %w", err)
 	}
-	mons := make([]Monitor, 0, len(raw))
+	mons := make([]screen.Monitor, 0, len(raw))
 	for _, m := range raw {
 		if m.Scale <= 0 {
 			m.Scale = 1
@@ -84,7 +98,7 @@ func (c *Client) Monitors() ([]Monitor, error) {
 		if m.Transform%2 == 1 { // rotated 90/270
 			w, h = h, w
 		}
-		mons = append(mons, Monitor{Name: m.Name, X: m.X, Y: m.Y, Width: w, Height: h})
+		mons = append(mons, screen.Monitor{Name: m.Name, X: m.X, Y: m.Y, Width: w, Height: h})
 	}
 	return mons, nil
 }

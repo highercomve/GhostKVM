@@ -19,8 +19,8 @@ import (
 
 	"github.com/highercomve/GhostKVM/internal/config"
 	"github.com/highercomve/GhostKVM/internal/gui"
-	"github.com/highercomve/GhostKVM/internal/hypr"
 	"github.com/highercomve/GhostKVM/internal/kvm"
+	"github.com/highercomve/GhostKVM/internal/screen"
 )
 
 func sample() kvm.Status {
@@ -37,7 +37,9 @@ func sample() kvm.Status {
 				Width: 1920, Height: 1080, Speed: 1.2,
 			},
 		},
-		Monitors: []hypr.Monitor{{Name: "DP-1", X: 0, Y: 0, Width: 2560, Height: 1440}},
+		Monitors:      []screen.Monitor{{Name: "DP-1", X: 0, Y: 0, Width: 2560, Height: 1440}},
+		Desktop:       "Hyprland",
+		EdgeSwitching: true,
 		Devices: []kvm.DeviceInfo{
 			{Path: "/dev/input/event3", Name: "Mechanical Keyboard", Kind: "keyboard", Used: true},
 			{Path: "/dev/input/event5", Name: "Wireless Mouse", Kind: "mouse", Used: true},
@@ -66,7 +68,7 @@ func main() {
 
 	above := sample()
 	above.Config.Peer.Side = "top"
-	above.Monitors = []hypr.Monitor{
+	above.Monitors = []screen.Monitor{
 		{Name: "DP-1", X: 0, Y: 0, Width: 2560, Height: 1440},
 		{Name: "HDMI-A-1", X: 2560, Y: 180, Width: 1920, Height: 1080},
 	}

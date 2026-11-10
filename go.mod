@@ -3,10 +3,15 @@ module github.com/highercomve/GhostKVM
 go 1.26.0
 
 require (
+	aead.dev/minisign v0.3.0
 	github.com/BurntSushi/toml v1.6.0
 	github.com/godbus/dbus/v5 v5.2.4
+	github.com/jezek/xgb v1.3.1
+	github.com/ulikunitz/xz v0.5.17
 	golang.org/x/sys v0.50.0
 )
+
+require golang.org/x/crypto v0.33.0 // indirect
 
 require (
 	fyne.io/fyne/v2 v2.8.2

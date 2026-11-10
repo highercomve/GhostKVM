@@ -6,6 +6,8 @@ import (
 	"fmt"
 	"strings"
 	"sync"
+	"sync/atomic"
+	"time"
 
 	"github.com/godbus/dbus/v5"
 )
@@ -148,11 +150,11 @@ func (c *characteristic) isNotifying() bool {
 func (c *characteristic) notify(data []byte) error {
 	c.mu.Lock()
 	c.value = append([]byte(nil), data...)
-	on := c.notifying
 	c.mu.Unlock()
-	if !on {
-		return nil
-	}
+	// Always hand the value to BlueZ: it only forwards notifications to hosts
+	// whose subscription (CCC) is on. A bonded host keeps that subscription
+	// across reconnects and GhostKVM restarts without telling us again, so
+	// waiting for StartNotify would drop its input.
 	return c.p.conn.Emit(c.path, ifaceProps+".PropertiesChanged", ifaceChr,
 		map[string]dbus.Variant{"Value": dbus.MakeVariant(data)}, []string{})
 }
@@ -274,6 +276,8 @@ type Peripheral struct {
 	services []*service
 	kbd      *characteristic
 	mouse    *characteristic
+	hostUp   atomic.Bool // a bonded host is connected to us over LE
+	stop     chan struct{}
 }
 
 // New connects to BlueZ and prepares (but does not start) the peripheral.
@@ -293,7 +297,47 @@ func New(name string) (*Peripheral, error) {
 
 func (p *Peripheral) Conn() *dbus.Conn         { return p.conn }
 func (p *Peripheral) Adapter() dbus.ObjectPath { return p.adapter }
-func (p *Peripheral) HostSubscribed() bool     { return p.mouse.isNotifying() || p.kbd.isNotifying() }
+
+// HostSubscribed reports whether a host can receive our input: it subscribed
+// in this session, or a bonded device is connected to us in the central role.
+func (p *Peripheral) HostSubscribed() bool {
+	return p.hostUp.Load() || p.mouse.isNotifying() || p.kbd.isNotifying()
+}
+
+// watchHosts refreshes hostUp once a second from BlueZ's device list.
+func (p *Peripheral) watchHosts() {
+	t := time.NewTicker(time.Second)
+	defer t.Stop()
+	for {
+		p.hostUp.Store(p.bondedHostConnected())
+		select {
+		case <-p.stop:
+			return
+		case <-t.C:
+		}
+	}
+}
+
+func (p *Peripheral) bondedHostConnected() bool {
+	var objs map[dbus.ObjectPath]map[string]map[string]dbus.Variant
+	if err := p.conn.Object(bluezBus, "/").Call(ifaceOM+".GetManagedObjects", 0).Store(&objs); err != nil {
+		return false
+	}
+	prefix := string(p.adapter) + "/"
+	for path, ifs := range objs {
+		le, ok := ifs["org.bluez.Bearer.LE1"]
+		if !ok || !strings.HasPrefix(string(path), prefix) {
+			continue
+		}
+		connected, _ := le["Connected"].Value().(bool)
+		bonded, _ := le["Bonded"].Value().(bool)
+		role, _ := le["Role"].Value().(string)
+		if connected && bonded && role == "central" { // the remote is the central: a host using us
+			return true
+		}
+	}
+	return false
+}
 
 func (p *Peripheral) findAdapter() (dbus.ObjectPath, error) {
 	var objs map[dbus.ObjectPath]map[string]map[string]dbus.Variant
@@ -425,11 +469,17 @@ func (p *Peripheral) Start() error {
 		return fmt.Errorf("register advertisement: %w", err)
 	}
 	Logf("advertising as %q", p.name)
+	p.stop = make(chan struct{})
+	go p.watchHosts()
 	return nil
 }
 
 // Stop unregisters everything from BlueZ. Bonds are kept.
 func (p *Peripheral) Stop() {
+	if p.stop != nil {
+		close(p.stop)
+		p.stop = nil
+	}
 	ad := p.conn.Object(bluezBus, p.adapter)
 	ad.Call(ifaceAdvMgr+".UnregisterAdvertisement", 0, advPath)
 	ad.Call(ifaceGattMgr+".UnregisterApplication", 0, appPath)

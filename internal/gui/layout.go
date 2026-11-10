@@ -10,7 +10,7 @@ import (
 	"fyne.io/fyne/v2/theme"
 	"fyne.io/fyne/v2/widget"
 
-	"github.com/highercomve/GhostKVM/internal/hypr"
+	"github.com/highercomve/GhostKVM/internal/screen"
 )
 
 // layoutEditor draws the desktop monitors to scale with the peer's screen
@@ -19,7 +19,7 @@ import (
 type layoutEditor struct {
 	widget.BaseWidget
 
-	monitors  []hypr.Monitor
+	monitors  []screen.Monitor
 	side      string
 	monitor   string
 	peerW     float64
@@ -42,7 +42,7 @@ func newLayoutEditor(onChange func(side, monitor string)) *layoutEditor {
 	return e
 }
 
-func (e *layoutEditor) set(monitors []hypr.Monitor, side, monitor string, w, h float64, name string, peerFront bool) {
+func (e *layoutEditor) set(monitors []screen.Monitor, side, monitor string, w, h float64, name string, peerFront bool) {
 	if e.dragging {
 		return
 	}
@@ -66,7 +66,7 @@ type rect struct{ x, y, w, h float64 }
 
 func (r rect) center() (float64, float64) { return r.x + r.w/2, r.y + r.h/2 }
 
-func (e *layoutEditor) targetMonitor() (hypr.Monitor, bool) {
+func (e *layoutEditor) targetMonitor() (screen.Monitor, bool) {
 	for _, m := range e.monitors {
 		if m.Name == e.monitor {
 			return m, true
@@ -75,11 +75,11 @@ func (e *layoutEditor) targetMonitor() (hypr.Monitor, bool) {
 	if len(e.monitors) > 0 {
 		return e.monitors[0], true
 	}
-	return hypr.Monitor{}, false
+	return screen.Monitor{}, false
 }
 
 // peerRect places the peer screen (world coords) on one side of m, centred.
-func (e *layoutEditor) peerRect(m hypr.Monitor, side string) rect {
+func (e *layoutEditor) peerRect(m screen.Monitor, side string) rect {
 	w, h := e.peerW, e.peerH
 	switch side {
 	case "left":

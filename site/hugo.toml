@@ -4,7 +4,7 @@ disableKinds = ["taxonomy", "term", "RSS", "sitemap", "section", "page"]
 enableGitInfo = false
 
 [params]
-  description = "One keyboard and mouse for your Linux desktop and your Chromebook. GhostKVM turns your Hyprland desktop into a Bluetooth keyboard and mouse: push the pointer off the screen edge and keep working on the Chromebook."
+  description = "One keyboard and mouse for your Linux desktop and your Chromebook. GhostKVM turns your Linux desktop into a Bluetooth keyboard and mouse: push the pointer off the screen edge and keep working on the Chromebook."
   repo = "https://github.com/highercomve/GhostKVM"
 
 [markup.goldmark.renderer]

@@ -4,12 +4,12 @@
     <div class="hero-copy">
       <p class="eyebrow">Software KVM for Linux and ChromeOS</p>
       <h1>One keyboard and mouse. <span class="accent">Two computers.</span></h1>
-      <p class="lede">GhostKVM turns your Hyprland desktop into a Bluetooth keyboard and mouse. Push the pointer off the edge of your screen and keep working on your Chromebook, as if it were an extra display.</p>
+      <p class="lede">GhostKVM turns your Linux desktop into a Bluetooth keyboard and mouse. Push the pointer off the edge of your screen and keep working on your Chromebook, as if it were an extra display.</p>
       <div class="cta-row">
-        <a class="btn" href="#install">Install</a>
+        <a class="btn" href="{{ site.Params.repo }}/releases/latest">Download</a>
         <a class="btn btn-ghost" href="{{ site.Params.repo }}">Source on GitHub</a>
       </div>
-      <p class="fineprint">Nothing to install on the Chromebook · Linux + Hyprland · Free for non-commercial use</p>
+      <p class="fineprint">Nothing to install on the Chromebook · Linux, x86_64 and ARM · Updates itself · Free for non-commercial use</p>
     </div>
 
     {{- /* The logo, brought to life: the ghost mouse drifts from the desktop to the
@@ -128,8 +128,16 @@
         <img class="tray-states" src="{{ "images/tray-states.png" | relURL }}" width="720" height="150" alt="Tray icon states: grey while waiting, mint when connected, blue while the Chromebook has control">
       </article>
       <article>
-        <h3>One small binary</h3>
-        <p>Written in Go. Settings live in a single TOML file you can edit by hand, and a hotkey always brings you back.</p>
+        <h3>Updates itself, safely</h3>
+        <p>GhostKVM checks for a release once a day and installs it only when its signature matches the key built into the app. Packages update through your package manager.</p>
+      </article>
+      <article>
+        <h3>Scriptable</h3>
+        <p><code>ghostkvm ctl</code> types, clicks and presses shortcuts on the Chromebook from scripts, automation tools and AI agents, while you keep working on the desktop.</p>
+      </article>
+      <article>
+        <h3>Works on your desktop</h3>
+        <p>Edge switching on Hyprland and every X11 desktop. On GNOME, KDE and Sway under Wayland, switch with the hotkey or the tray.</p>
       </article>
     </div>
   </div>
@@ -140,9 +148,9 @@
     <div>
       <p class="eyebrow">Install</p>
       <h2 class="section-title">Up and running in a minute.</h2>
-      <p class="section-lede">Build from source and install it with a launcher entry and icon. You need Go 1.25+, a C compiler and the usual OpenGL/X11 headers.</p>
+      <p class="section-lede">Download the <a href="{{ site.Params.repo }}/releases/latest">latest release</a>: a tarball that updates itself, or a <code>.deb</code>, <code>.rpm</code> or Arch package. Or build it from source.</p>
       <ul class="reqs">
-        <li><b>Desktop</b> Linux with Hyprland 0.55 or newer</li>
+        <li><b>Desktop</b> any Linux desktop; edge switching on Hyprland and X11</li>
         <li><b>Bluetooth</b> BlueZ 5 and an adapter with LE peripheral support</li>
         <li><b>Permissions</b> your user in the <code>input</code> group, no root</li>
         <li><b>Other computer</b> a Chromebook, or anything that takes a BLE keyboard and mouse</li>
@@ -150,25 +158,25 @@
     </div>
     <div class="code-stack">
       <div class="code">
-        <div class="code-head"><span>Build and install</span><button class="copy" type="button" data-copy="install">Copy</button></div>
-<pre id="install-cmd"><code>git clone https://github.com/highercomve/GhostKVM.git
-cd GhostKVM
-make install-local</code></pre>
+        <div class="code-head"><span>Install the tarball (updates itself)</span><button class="copy" type="button">Copy</button></div>
+<pre><code>curl -fsSLO https://github.com/highercomve/GhostKVM/releases/latest/download/ghostkvm-linux-$(uname -m).tar.xz
+tar -xJf ghostkvm-linux-$(uname -m).tar.xz
+install -Dm755 ghostkvm-linux-$(uname -m)/bin/ghostkvm ~/.local/bin/ghostkvm</code></pre>
       </div>
       <div class="code">
-        <div class="code-head"><span>Or just the binary</span><button class="copy" type="button">Copy</button></div>
-<pre><code>go install github.com/highercomve/GhostKVM/cmd/ghostkvm@latest</code></pre>
+        <div class="code-head"><span>Or build from source</span><button class="copy" type="button">Copy</button></div>
+<pre><code>git clone https://github.com/highercomve/GhostKVM.git
+cd GhostKVM && make install-local</code></pre>
       </div>
       <div class="code">
         <div class="code-head"><span>Allow reading keyboards and mice</span><button class="copy" type="button">Copy</button></div>
 <pre><code>sudo usermod -aG input "$USER"   # then log out and back in</code></pre>
       </div>
       <div class="code">
-        <div class="code-head"><span>Start it with Hyprland</span><button class="copy" type="button">Copy</button></div>
-<pre><code>-- ~/.config/hypr/hyprland.lua
-hl.on("hyprland.start", function()
-    hl.exec_cmd("ghostkvm")
-end)</code></pre>
+        <div class="code-head"><span>Drive the Chromebook from a script</span><button class="copy" type="button">Copy</button></div>
+<pre><code>ghostkvm ctl key search
+ghostkvm ctl type "chrome://settings"
+ghostkvm ctl key Return</code></pre>
       </div>
     </div>
   </div>
@@ -179,6 +187,10 @@ end)</code></pre>
     <p class="eyebrow">Help</p>
     <h2 class="section-title">Good to know</h2>
     <div class="faq">
+      <details>
+        <summary>Does it work on GNOME or KDE?</summary>
+        <p>Yes. On X11 sessions (and on Hyprland) you switch by pushing the pointer past the screen edge. GNOME, KDE and Sway under Wayland don't let apps follow the pointer, so there you switch to the Chromebook with <kbd>Ctrl</kbd>+<kbd>Alt</kbd>+<kbd>K</kbd> or the tray, and come back by pushing past the Chromebook's edge. Edge switching for Wayland is on the roadmap.</p>
+      </details>
       <details>
         <summary>The Chromebook doesn't list GhostKVM</summary>
         <p>Your desktop must not be discoverable as a normal Bluetooth computer at the same time, or the Chromebook merges the two and shows only the computer's name. GhostKVM turns that off while it runs. If another app made the desktop discoverable, turn it off there, then switch the Chromebook's Bluetooth off and on.</p>

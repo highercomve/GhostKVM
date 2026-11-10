@@ -5,6 +5,7 @@ package kvm
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"log"
 	"math"
@@ -14,8 +15,8 @@ import (
 	"github.com/highercomve/GhostKVM/internal/blehid"
 	"github.com/highercomve/GhostKVM/internal/config"
 	"github.com/highercomve/GhostKVM/internal/evdev"
-	"github.com/highercomve/GhostKVM/internal/hypr"
 	"github.com/highercomve/GhostKVM/internal/keymap"
+	"github.com/highercomve/GhostKVM/internal/screen"
 )
 
 // HID is the output side: anything that can send mouse and keyboard reports.
@@ -37,7 +38,7 @@ type devMsg struct {
 type KVM struct {
 	cfg    *config.Config
 	hid    HID
-	hy     *hypr.Client
+	scr    screen.Backend
 	hotkey keymap.Hotkey
 
 	devices map[string]*evdev.Device // open, captured-capable devices by path
@@ -46,8 +47,8 @@ type KVM struct {
 	cmds    chan func() // work from other goroutines (the web UI), run in Run's loop
 	stopped chan struct{}
 
-	mon      hypr.Monitor   // desktop monitor the peer touches
-	monitors []hypr.Monitor // all desktop monitors, for the UI
+	mon      screen.Monitor   // desktop monitor the peer touches
+	monitors []screen.Monitor // all desktop monitors, for the UI
 
 	// held state, tracked in both modes
 	mods     byte
@@ -67,12 +68,11 @@ type KVM struct {
 	pendingSwap bool // hotkey pressed locally; switch once keys are released
 
 	// remote mode
-	vx, vy       float64 // tracked peer pointer position
-	overshoot    float64
-	remoteKeys   []byte // HID usages currently held on the peer
-	accX, accY   float64
-	accWheel     int
-	savedTimeout float64
+	vx, vy     float64 // tracked peer pointer position
+	overshoot  float64
+	remoteKeys []byte // HID usages currently held on the peer
+	accX, accY float64
+	accWheel   int
 }
 
 type frameAcc struct{ dx, dy, wheel int32 }
@@ -92,13 +92,13 @@ func kindOf(d *evdev.Device) string {
 }
 
 // New prepares a KVM. Call Run to start it.
-func New(cfg *config.Config, hid HID, hy *hypr.Client) (*KVM, error) {
+func New(cfg *config.Config, hid HID, scr screen.Backend) (*KVM, error) {
 	hk, err := keymap.ParseHotkey(cfg.Hotkey)
 	if err != nil {
 		return nil, err
 	}
 	return &KVM{
-		cfg: cfg, hid: hid, hy: hy, hotkey: hk,
+		cfg: cfg, hid: hid, scr: scr, hotkey: hk,
 		devices:  map[string]*evdev.Device{},
 		skipped:  map[string]skipInfo{},
 		msgs:     make(chan devMsg, 256),
@@ -135,8 +135,13 @@ func (k *KVM) Run(ctx context.Context) error {
 	defer flush.Stop()
 	defer rescan.Stop()
 
-	log.Printf("ready: %s is %s of %s; push the mouse off that edge or press %s",
-		k.cfg.Peer.Name, k.cfg.Peer.Side, k.mon.Name, k.cfg.Hotkey)
+	if k.scr.EdgeSwitching() {
+		log.Printf("ready (%s): %s is %s of %s; push the mouse off that edge or press %s",
+			k.scr.Name(), k.cfg.Peer.Name, k.cfg.Peer.Side, k.mon.Name, k.cfg.Hotkey)
+	} else {
+		log.Printf("ready (%s): edge switching isn't available on this desktop; press %s or use the tray to switch",
+			k.scr.Name(), k.cfg.Hotkey)
+	}
 
 	for {
 		select {
@@ -247,12 +252,12 @@ func (k *KVM) grabAll(on bool) {
 }
 
 func (k *KVM) refreshMonitor() error {
-	mons, err := k.hy.Monitors()
+	mons, err := k.scr.Monitors()
 	if err != nil {
-		return fmt.Errorf("hyprland monitors: %w", err)
+		return fmt.Errorf("%s monitors: %w", k.scr.Name(), err)
 	}
 	if len(mons) == 0 {
-		return fmt.Errorf("hyprland reports no monitors")
+		return fmt.Errorf("%s reports no monitors", k.scr.Name())
 	}
 	k.monitors = mons
 	for _, m := range mons {
@@ -356,7 +361,7 @@ func (k *KVM) handleKey(code uint16, value int32) {
 		if k.pendingSwap && k.mods == 0 && len(k.keysDown) == 0 && k.buttons == 0 {
 			k.pendingSwap = false
 			frac := 0.5
-			if x, y, err := k.hy.CursorPos(); err == nil {
+			if x, y, err := k.scr.CursorPos(); err == nil {
 				frac = k.fracAlongEdge(x, y)
 			}
 			k.enterRemote(frac, "hotkey")
@@ -419,14 +424,14 @@ func (k *KVM) handleMotion(dx, dy float64, wheel int) {
 	t := k.toward(dx, dy)
 	// Never switch mid-drag or with keys held: Hyprland would miss the
 	// release once we grab the devices, and the key would stay stuck.
-	if t <= 0 || k.buttons != 0 || k.mods != 0 || len(k.keysDown) != 0 || !k.hid.HostSubscribed() {
+	if !k.scr.EdgeSwitching() || t <= 0 || k.buttons != 0 || k.mods != 0 || len(k.keysDown) != 0 || !k.hid.HostSubscribed() {
 		k.push = 0
 		return
 	}
 	// Ask Hyprland where the cursor is, at most every 10ms.
 	if time.Since(k.lastQuery) >= 10*time.Millisecond {
 		k.lastQuery = time.Now()
-		x, y, err := k.hy.CursorPos()
+		x, y, err := k.scr.CursorPos()
 		if err != nil {
 			return
 		}
@@ -485,12 +490,9 @@ func (k *KVM) enterRemote(frac float64, why string) {
 	k.accX, k.accY, k.accWheel = 0, 0, 0
 	k.remoteKeys = k.remoteKeys[:0]
 
-	// Hide the desktop cursor: with our grab Hyprland sees no motion, so a
-	// short inactivity timeout makes it disappear.
-	if t, err := k.hy.InactiveTimeout(); err == nil {
-		k.savedTimeout = t
+	if err := k.scr.HideCursor(); err != nil {
+		log.Printf("hide cursor: %v", err)
 	}
-	k.hy.SetInactiveTimeout(0.2)
 
 	k.placePeerPointer(frac)
 	log.Printf("-> %s (%s)", k.cfg.Peer.Name, why)
@@ -569,11 +571,11 @@ func (k *KVM) leaveRemote(why string) {
 	if why != "edge" {
 		x, y = m.X+m.Width/2, m.Y+m.Height/2
 	}
-	if err := k.hy.MoveCursor(x, y); err != nil {
+	if err := k.scr.MoveCursor(x, y); err != nil && !errors.Is(err, screen.ErrUnsupported) {
 		log.Printf("move cursor: %v", err)
 	}
-	if err := k.hy.SetInactiveTimeout(k.savedTimeout); err != nil {
-		log.Printf("restore cursor timeout: %v", err)
+	if err := k.scr.ShowCursor(); err != nil {
+		log.Printf("show cursor: %v", err)
 	}
 	log.Printf("<- desktop (%s)", why)
 }

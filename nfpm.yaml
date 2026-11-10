@@ -1,0 +1,33 @@
+# nfpm config for the .deb, .rpm and Arch packages (see `make packages`).
+# VERSION (no "v"), ARCH (amd64 | arm64) and BINARY are filled in by envsubst.
+name: ghostkvm
+arch: ${ARCH}
+platform: linux
+version: ${VERSION}
+section: utils
+priority: optional
+maintainer: Sergio Marin <https://github.com/highercomve>
+description: |
+  One keyboard and mouse for your Linux desktop and your Chromebook.
+  GhostKVM turns the desktop into a Bluetooth LE keyboard and mouse: push the
+  pointer off the screen edge and keep working on the Chromebook.
+vendor: highercomve
+homepage: https://highercomve.github.io/GhostKVM/
+license: PolyForm-Noncommercial-1.0.0
+depends:
+  - bluez
+contents:
+  - src: ${BINARY}
+    dst: /usr/bin/ghostkvm
+    file_info:
+      mode: 0755
+  - src: packaging/ghostkvm.desktop
+    dst: /usr/share/applications/ghostkvm.desktop
+  - src: Icon.png
+    dst: /usr/share/icons/hicolor/256x256/apps/ghostkvm.png
+  - src: assets/ghostkvm.svg
+    dst: /usr/share/icons/hicolor/scalable/apps/ghostkvm.svg
+  - src: LICENSE.md
+    dst: /usr/share/licenses/ghostkvm/LICENSE.md
+  - src: README.md
+    dst: /usr/share/doc/ghostkvm/README.md
