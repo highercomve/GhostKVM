@@ -314,6 +314,11 @@ func (a *App) setupTray() {
 // ---------------------------------------------------------------- actions
 
 func (a *App) apply(c config.Config) {
+	// Controls fire their change handlers when fillSettings sets them; those
+	// are not user edits. Previews have no KVM behind them.
+	if a.filling || a.k == nil {
+		return
+	}
 	go func() {
 		err := a.k.Apply(c)
 		var st kvm.Status

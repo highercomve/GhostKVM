@@ -144,6 +144,14 @@ p { margin: 0; }
   background: #13161d;
 }
 
+/* ---------------------------------------------------------------- gallery */
+.gallery-section { padding: 40px 0 0; }
+.gallery { display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px; }
+@media (max-width: 820px) { .gallery { grid-template-columns: 1fr; } }
+.gallery figure { margin: 0; }
+.gallery img { width: 100%; aspect-ratio: 16 / 10; object-fit: cover; object-position: top; border-radius: var(--radius); border: 1px solid var(--line); box-shadow: var(--shadow); background: #13161d; }
+.gallery figcaption { margin-top: 10px; text-align: center; color: var(--muted); font-size: .92rem; }
+
 /* ---------------------------------------------------------------- sections */
 .section { padding: 88px 0; }
 .section-alt { background: var(--surface); border-block: 1px solid var(--line); }

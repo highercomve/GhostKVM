@@ -28,6 +28,19 @@
   <img src="docs/images/app.png" width="760" alt="The GhostKVM window: the Chromebook placed to the left of the desktop monitor, with pointer speed, edge resistance and hotkey settings">
 </p>
 
+<table>
+  <tr>
+    <td width="33%"><img src="docs/images/app-peer.png" alt="The Chromebook has control: its box and the status pill turn blue"></td>
+    <td width="33%"><img src="docs/images/app-two-monitors.png" alt="With two monitors: the Chromebook placed above the first one"></td>
+    <td width="33%"><img src="docs/images/app-light.png" alt="The window in light mode"></td>
+  </tr>
+  <tr>
+    <td align="center"><sub>Chromebook in control</sub></td>
+    <td align="center"><sub>Any side of any monitor</sub></td>
+    <td align="center"><sub>Follows light and dark mode</sub></td>
+  </tr>
+</table>
+
 ## Why GhostKVM
 
 Software KVMs such as Input Leap, Deskflow or Lan Mouse need a helper app on every
@@ -195,6 +208,7 @@ make build     # bin/ghostkvm
 make run       # build and start
 make vet       # go vet ./...
 make icons     # re-render the PNG icons from assets/*.svg (needs rsvg-convert)
+make screenshots   # re-render docs/images/app*.png from the real UI with sample data
 cd site && hugo server   # preview the website at http://localhost:1313/GhostKVM/
 make bletest   # bin/ghostkvm-bletest, a static binary for testing an adapter
 ```

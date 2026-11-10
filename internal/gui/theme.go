@@ -48,11 +48,21 @@ func alpha(c color.NRGBA, a uint8) color.NRGBA { c.A = a; return c }
 
 // pal returns the palette for the variant Fyne is currently using.
 func pal() palette {
+	if forcedLight != nil {
+		if *forcedLight {
+			return lightPalette
+		}
+		return darkPalette
+	}
 	if fyne.CurrentApp() != nil && fyne.CurrentApp().Settings().ThemeVariant() == theme.VariantLight {
 		return lightPalette
 	}
 	return darkPalette
 }
+
+// forcedLight pins the palette for off-screen rendering (Preview); nil
+// means follow the system.
+var forcedLight *bool
 
 type ghostTheme struct{}
 
@@ -60,6 +70,9 @@ func (ghostTheme) Color(n fyne.ThemeColorName, v fyne.ThemeVariant) color.Color 
 	p := darkPalette
 	if v == theme.VariantLight {
 		p = lightPalette
+	}
+	if forcedLight != nil {
+		p = pal()
 	}
 	switch n {
 	case theme.ColorNameBackground:

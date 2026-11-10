@@ -2,7 +2,7 @@ BINARY_NAME = ghostkvm
 VERSION    ?= $(shell git describe --tags --always --dirty="-dev" 2>/dev/null || echo "0.1.0")
 LDFLAGS    := -s -w -X=github.com/highercomve/GhostKVM/internal/version.Version=$(VERSION)
 
-.PHONY: all build bletest icons test vet run install-local uninstall-local clean help
+.PHONY: all build bletest icons screenshots test vet run install-local uninstall-local clean help
 
 all: build
 
@@ -21,6 +21,9 @@ icons: ## Render assets/*.png and Icon.png from the SVG sources (needs rsvg-conv
 	sed 's/@COLOR@/#A9B0BD/' assets/tray.svg.in | rsvg-convert -w 64 -h 64 -o assets/tray-waiting.png
 	sed 's/@COLOR@/#86A8FF/' assets/tray.svg.in | rsvg-convert -w 64 -h 64 -o assets/tray-active.png
 	cp assets/ghostkvm.png Icon.png
+
+screenshots: ## Render the README/website screenshots from the real UI with sample data
+	go run -tags screenshots -ldflags "-X=github.com/highercomve/GhostKVM/internal/version.Version=$(VERSION)" ./cmd/ghostkvm-screenshots docs/images
 
 vet: ## Run go vet
 	go vet ./...
