@@ -10,6 +10,13 @@
 </p>
 
 <p align="center">
+  <a href="https://highercomve.github.io/GhostKVM/"><b>Website</b></a> ·
+  <a href="#install">Install</a> ·
+  <a href="#getting-started">Getting started</a> ·
+  <a href="#troubleshooting">Troubleshooting</a>
+</p>
+
+<p align="center">
   <a href="LICENSE.md"><img alt="License: PolyForm Noncommercial 1.0.0" src="https://img.shields.io/badge/license-PolyForm%20Noncommercial-blue"></a>
   <img alt="Go" src="https://img.shields.io/badge/go-1.25-00ADD8">
   <img alt="Linux · Hyprland" src="https://img.shields.io/badge/desktop-Linux%20·%20Hyprland-2EC495">
@@ -188,6 +195,7 @@ make build     # bin/ghostkvm
 make run       # build and start
 make vet       # go vet ./...
 make icons     # re-render the PNG icons from assets/*.svg (needs rsvg-convert)
+cd site && hugo server   # preview the website at http://localhost:1313/GhostKVM/
 make bletest   # bin/ghostkvm-bletest, a static binary for testing an adapter
 ```
 

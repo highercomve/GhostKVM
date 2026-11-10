@@ -1,0 +1,188 @@
+{{ define "main" }}
+<section class="hero">
+  <div class="wrap hero-grid">
+    <div class="hero-copy">
+      <p class="eyebrow">Software KVM for Linux and ChromeOS</p>
+      <h1>One keyboard and mouse. <span class="accent">Two computers.</span></h1>
+      <p class="lede">GhostKVM turns your Hyprland desktop into a Bluetooth keyboard and mouse. Push the pointer off the edge of your screen and keep working on your Chromebook, as if it were an extra display.</p>
+      <div class="cta-row">
+        <a class="btn" href="#install">Install</a>
+        <a class="btn btn-ghost" href="{{ site.Params.repo }}">Source on GitHub</a>
+      </div>
+      <p class="fineprint">Nothing to install on the Chromebook · Linux + Hyprland · Free for non-commercial use</p>
+    </div>
+
+    {{- /* The logo, brought to life: the ghost mouse drifts from the desktop to the
+           Chromebook and back. Paused for prefers-reduced-motion (see main.js). */ -}}
+    <figure class="stage" aria-label="Illustration: a ghost-shaped mouse drifts from a desktop monitor to a laptop">
+      <svg id="stage" viewBox="0 0 640 340" role="img" aria-hidden="true">
+        <defs>
+          <linearGradient id="screen" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0" stop-color="var(--screen-top)"/>
+            <stop offset="1" stop-color="var(--screen-bottom)"/>
+          </linearGradient>
+        </defs>
+        <!-- desktop monitor -->
+        <rect x="34" y="40" width="252" height="164" rx="16" class="frame"/>
+        <rect x="46" y="52" width="228" height="140" rx="8" fill="url(#screen)"/>
+        <path d="M140 204 V232 M110 236 H190" class="frame-line"/>
+        <text x="160" y="128" class="screen-label">this computer</text>
+        <!-- laptop -->
+        <rect x="378" y="66" width="214" height="138" rx="14" class="frame"/>
+        <rect x="390" y="78" width="190" height="114" rx="7" fill="url(#screen)"/>
+        <path d="M352 216 H618" class="frame-line"/>
+        <text x="485" y="140" class="screen-label">Chromebook</text>
+        <!-- path the pointer travels -->
+        <path id="drift" d="M170 236 Q330 330 482 232" class="trail"/>
+        <!-- ghost mouse -->
+        <g id="ghost">
+          <g transform="rotate(-10) scale(2.6)">
+            <path d="M-8 2 C-8 -6.5 -4.4 -11 0 -11 C4.4 -11 8 -6.5 8 2 V12 C6.7 10 5.3 10 4 12 C2.7 14 1.3 14 0 12 C-1.3 10 -2.7 10 -4 12 C-5.3 14 -6.7 14 -8 12 Z" class="ghost-body"/>
+            <path d="M0 -8.6 V-4" class="ghost-line"/>
+            <ellipse cx="-3.2" cy="1.5" rx="1.6" ry="2.2" class="ghost-eye"/>
+            <ellipse cx="3.2" cy="1.5" rx="1.6" ry="2.2" class="ghost-eye"/>
+          </g>
+          <animateMotion dur="7s" repeatCount="indefinite" calcMode="spline"
+            keyPoints="0;0;1;1;0" keyTimes="0;0.12;0.5;0.62;1"
+            keySplines="0 0 1 1;.45 0 .25 1;0 0 1 1;.45 0 .25 1">
+            <mpath href="#drift"/>
+          </animateMotion>
+        </g>
+      </svg>
+    </figure>
+  </div>
+
+  <div class="wrap">
+    <div class="shot">
+      <img src="{{ "images/app.png" | relURL }}" width="1120" height="980" alt="The GhostKVM window: the Chromebook placed to the left of the desktop monitor, with pointer speed, edge resistance and hotkey settings">
+    </div>
+  </div>
+</section>
+
+<section class="section" id="how">
+  <div class="wrap">
+    <p class="eyebrow">How it works</p>
+    <h2 class="section-title">Your desktop becomes a wireless keyboard and mouse.</h2>
+    <p class="section-lede">ChromeOS doesn't let apps capture or create input for the whole system, so other software KVMs can't run there. GhostKVM needs nothing on the Chromebook: it pairs with your desktop like with any Bluetooth keyboard.</p>
+    <ol class="steps">
+      <li>
+        <span class="step-n">1</span>
+        <h3>Pair once</h3>
+        <p>On the Chromebook, open <b>Settings › Bluetooth</b> and pair <b>GhostKVM</b>. From then on it reconnects by itself.</p>
+      </li>
+      <li>
+        <span class="step-n">2</span>
+        <h3>Place it</h3>
+        <p>Drag the Chromebook to the side of your monitor where it sits on your desk: left, right, above or below.</p>
+      </li>
+      <li>
+        <span class="step-n">3</span>
+        <h3>Push past the edge</h3>
+        <p>Move the pointer off that edge. Your keyboard and mouse now drive the Chromebook. Come back the same way, or press <kbd>Ctrl</kbd>+<kbd>Alt</kbd>+<kbd>K</kbd>.</p>
+      </li>
+    </ol>
+  </div>
+</section>
+
+<section class="section section-alt" id="features">
+  <div class="wrap">
+    <p class="eyebrow">Features</p>
+    <h2 class="section-title">Feels like one big desk.</h2>
+    <div class="features">
+      <article>
+        <h3>An extra display, not a toggle</h3>
+        <p>The pointer leaves your monitor and appears on the Chromebook at the same height, then comes back where you left. No key to remember.</p>
+      </article>
+      <article>
+        <h3>Nothing on the Chromebook</h3>
+        <p>It's a standard Bluetooth LE keyboard and mouse. No extension, no Linux container, no developer mode.</p>
+      </article>
+      <article>
+        <h3>Keeps your Bluetooth mouse</h3>
+        <p>One adapter talks to your Bluetooth mouse and to the Chromebook at the same time. Tested with an Intel AX210.</p>
+      </article>
+      <article>
+        <h3>Never leaves a key stuck</h3>
+        <p>It won't switch mid-drag or while a key is held. If the Chromebook disconnects or GhostKVM stops, your devices go straight back to the desktop.</p>
+      </article>
+      <article>
+        <h3>Lives in your tray</h3>
+        <p>Close the window and GhostKVM keeps running. The ghost shows the link state at a glance.</p>
+        <img class="tray-states" src="{{ "images/tray-states.png" | relURL }}" width="720" height="150" alt="Tray icon states: grey while waiting, mint when connected, blue while the Chromebook has control">
+      </article>
+      <article>
+        <h3>One small binary</h3>
+        <p>Written in Go. Settings live in a single TOML file you can edit by hand, and a hotkey always brings you back.</p>
+      </article>
+    </div>
+  </div>
+</section>
+
+<section class="section" id="install">
+  <div class="wrap install-grid">
+    <div>
+      <p class="eyebrow">Install</p>
+      <h2 class="section-title">Up and running in a minute.</h2>
+      <p class="section-lede">Build from source and install it with a launcher entry and icon. You need Go 1.25+, a C compiler and the usual OpenGL/X11 headers.</p>
+      <ul class="reqs">
+        <li><b>Desktop</b> Linux with Hyprland 0.55 or newer</li>
+        <li><b>Bluetooth</b> BlueZ 5 and an adapter with LE peripheral support</li>
+        <li><b>Permissions</b> your user in the <code>input</code> group, no root</li>
+        <li><b>Other computer</b> a Chromebook, or anything that takes a BLE keyboard and mouse</li>
+      </ul>
+    </div>
+    <div class="code-stack">
+      <div class="code">
+        <div class="code-head"><span>Build and install</span><button class="copy" type="button" data-copy="install">Copy</button></div>
+<pre id="install-cmd"><code>git clone https://github.com/highercomve/GhostKVM.git
+cd GhostKVM
+make install-local</code></pre>
+      </div>
+      <div class="code">
+        <div class="code-head"><span>Or just the binary</span><button class="copy" type="button">Copy</button></div>
+<pre><code>go install github.com/highercomve/GhostKVM/cmd/ghostkvm@latest</code></pre>
+      </div>
+      <div class="code">
+        <div class="code-head"><span>Allow reading keyboards and mice</span><button class="copy" type="button">Copy</button></div>
+<pre><code>sudo usermod -aG input "$USER"   # then log out and back in</code></pre>
+      </div>
+      <div class="code">
+        <div class="code-head"><span>Start it with Hyprland</span><button class="copy" type="button">Copy</button></div>
+<pre><code>-- ~/.config/hypr/hyprland.lua
+hl.on("hyprland.start", function()
+    hl.exec_cmd("ghostkvm")
+end)</code></pre>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="section section-alt" id="faq">
+  <div class="wrap faq-wrap">
+    <p class="eyebrow">Help</p>
+    <h2 class="section-title">Good to know</h2>
+    <div class="faq">
+      <details>
+        <summary>The Chromebook doesn't list GhostKVM</summary>
+        <p>Your desktop must not be discoverable as a normal Bluetooth computer at the same time, or the Chromebook merges the two and shows only the computer's name. GhostKVM turns that off while it runs. If another app made the desktop discoverable, turn it off there, then switch the Chromebook's Bluetooth off and on.</p>
+      </details>
+      <details>
+        <summary>The pointer lands at the wrong height</summary>
+        <p>ChromeOS never reports where its pointer is, so GhostKVM tracks it. Make sure the resolution in GhostKVM matches the Chromebook's (<b>Settings › Device › Displays</b>), and turn off <b>Mouse acceleration</b> on the Chromebook. Use GhostKVM's <b>Pointer speed</b> instead.</p>
+      </details>
+      <details>
+        <summary>The pointer lags, then jumps</summary>
+        <p>Bluetooth LE carries a limited number of updates per second. GhostKVM sends one combined update every 15 ms to stay within it. If it still lags, move the Chromebook closer or reduce other Bluetooth traffic on the desktop.</p>
+      </details>
+      <details>
+        <summary>Something feels stuck</summary>
+        <p>Press <kbd>Ctrl</kbd>+<kbd>Alt</kbd>+<kbd>K</kbd>: it works from either computer. Quitting GhostKVM from the tray always hands your keyboard and mouse back to the desktop.</p>
+      </details>
+      <details>
+        <summary>Can I use it at work?</summary>
+        <p>GhostKVM is free for personal, educational, research and other non-commercial use under the <a href="{{ site.Params.repo }}/blob/main/LICENSE.md">PolyForm Noncommercial License</a>. Commercial use isn't permitted.</p>
+      </details>
+    </div>
+  </div>
+</section>
+{{ end }}

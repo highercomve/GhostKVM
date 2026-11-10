@@ -1,0 +1,30 @@
+baseURL = "https://highercomve.github.io/GhostKVM/"
+languageCode = "en"
+title = "GhostKVM"
+disableKinds = ["taxonomy", "term", "RSS", "sitemap", "section", "page"]
+enableGitInfo = false
+
+[params]
+  description = "One keyboard and mouse for your Linux desktop and your Chromebook. GhostKVM turns your Hyprland desktop into a Bluetooth keyboard and mouse: push the pointer off the screen edge and keep working on the Chromebook."
+  repo = "https://github.com/highercomve/GhostKVM"
+
+[markup.goldmark.renderer]
+  unsafe = true
+
+# Screenshots and the app icon live in the repo; mount them instead of copying.
+[module]
+  [[module.mounts]]
+    source = "content"
+    target = "content"
+  [[module.mounts]]
+    source = "layouts"
+    target = "layouts"
+  [[module.mounts]]
+    source = "assets"
+    target = "assets"
+  [[module.mounts]]
+    source = "../docs/images"
+    target = "static/images"
+  [[module.mounts]]
+    source = "../Icon.png"
+    target = "static/icon.png"

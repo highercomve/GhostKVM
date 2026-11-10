@@ -1,2 +1,7 @@
 bin/
 *.snoop
+# Website (Hugo)
+site/public/
+site/resources/
+site/.hugo_build.lock
+.playwright-mcp/
