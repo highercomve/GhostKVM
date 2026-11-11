@@ -25,6 +25,7 @@ const (
 	cmdKeyboard  = 0x02
 	cmdMouseAbs  = 0x04
 	cmdMouseRel  = 0x05
+	cmdConsumer  = 0x40 // GhostKVM firmware extension: 16-bit consumer usage
 	absMax       = 4095
 	statusPeriod = time.Second
 )
@@ -251,6 +252,20 @@ func (d *Device) KeyReport(mods byte, keys ...byte) error {
 	d.wmu.Lock()
 	defer d.wmu.Unlock()
 	return d.send(cmdKeyboard, r...)
+}
+
+// ConsumerKey sends a media key (consumer usage, 0 releases). Only GhostKVM's
+// firmware supports it; a CH9329 has a different, fixed media-key layout.
+func (d *Device) ConsumerKey(usage uint16) error {
+	d.mu.Lock()
+	ghost := d.ghostFW
+	d.mu.Unlock()
+	if !ghost {
+		return nil
+	}
+	d.wmu.Lock()
+	defer d.wmu.Unlock()
+	return d.send(cmdConsumer, byte(usage), byte(usage>>8))
 }
 
 func clamp(v int) int { return max(-127, min(127, v)) }

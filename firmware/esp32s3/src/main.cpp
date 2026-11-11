@@ -25,6 +25,7 @@ enum : uint8_t {
   CMD_MS_ABS = 0x04,
   CMD_MS_REL = 0x05,
   CMD_RESET = 0x0F,
+  CMD_CONSUMER = 0x40,  // GhostKVM extension: 16-bit consumer usage (volume, mute, play)
 };
 
 enum : uint8_t {
@@ -34,7 +35,7 @@ enum : uint8_t {
   ST_ERR_PARA = 0xE5,
 };
 
-enum : uint8_t { RID_KEYBOARD = 1, RID_MOUSE = 2, RID_ABS = 3 };
+enum : uint8_t { RID_KEYBOARD = 1, RID_MOUSE = 2, RID_ABS = 3, RID_CONSUMER = 4 };
 
 // clang-format off
 const uint8_t kReportDescriptor[] = {
@@ -57,6 +58,10 @@ const uint8_t kReportDescriptor[] = {
   0x05, 0x01, 0x09, 0x30, 0x09, 0x31, 0x16, 0x00, 0x00, 0x26, 0xFF, 0x0F, 0x75, 0x10, 0x95, 0x02, 0x81, 0x02,
   0x09, 0x38, 0x15, 0x81, 0x25, 0x7F, 0x75, 0x08, 0x95, 0x01, 0x81, 0x06,
   0xC0, 0xC0,
+  // Consumer control: one 16-bit usage (volume up 0xE9, mute 0xE2, ...)
+  0x05, 0x0C, 0x09, 0x01, 0xA1, 0x01, 0x85, RID_CONSUMER,
+  0x15, 0x00, 0x26, 0xFF, 0x03, 0x19, 0x00, 0x2A, 0xFF, 0x03, 0x75, 0x10, 0x95, 0x01, 0x81, 0x00,
+  0xC0,
 };
 // clang-format on
 
@@ -127,6 +132,10 @@ void handle(uint8_t addr, uint8_t cmd, const uint8_t* d, uint8_t len) {
       device.send(RID_ABS, r, sizeof(r));
       return ack(addr, cmd, ST_OK);
     }
+    case CMD_CONSUMER:
+      if (len != 2) return ack(addr, cmd, ST_ERR_PARA);
+      device.send(RID_CONSUMER, d, 2);
+      return ack(addr, cmd, ST_OK);
     case CMD_RESET:
       ack(addr, cmd, ST_OK);
       Serial.flush();

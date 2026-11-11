@@ -29,8 +29,9 @@ const (
 	advPath   = dbus.ObjectPath("/org/ghostkvm/adv0")
 	agentPath = dbus.ObjectPath("/org/ghostkvm/agent")
 
-	kbdReportID   = 1
-	mouseReportID = 2
+	kbdReportID      = 1
+	mouseReportID    = 2
+	consumerReportID = 3
 )
 
 // reportMap describes a keyboard (report 1, 8 bytes) and a 3-button mouse
@@ -55,6 +56,10 @@ var reportMap = []byte{
 	0x09, 0x38, // wheel: 8-bit relative
 	0x15, 0x81, 0x25, 0x7F, 0x75, 0x08, 0x95, 0x01, 0x81, 0x06,
 	0xC0, 0xC0,
+	// Consumer control (report 3): one 16-bit usage, e.g. volume up 0xE9
+	0x05, 0x0C, 0x09, 0x01, 0xA1, 0x01, 0x85, consumerReportID,
+	0x15, 0x00, 0x26, 0xFF, 0x03, 0x19, 0x00, 0x2A, 0xFF, 0x03, 0x75, 0x10, 0x95, 0x01, 0x81, 0x00,
+	0xC0,
 }
 
 // Logf is where the package reports events; replace to redirect.
@@ -274,6 +279,7 @@ type Peripheral struct {
 	services []*service
 	kbd      *characteristic
 	mouse    *characteristic
+	consumer *characteristic
 }
 
 // New connects to BlueZ and prepares (but does not start) the peripheral.
@@ -397,6 +403,8 @@ func (p *Peripheral) build() {
 	addDesc(p.kbd, "2908", []string{"encrypt-read"}, []byte{kbdReportID, 1})
 	p.mouse = p.addChar(hid, "2a4d", []string{"encrypt-read", "notify"}, make([]byte, 6))
 	addDesc(p.mouse, "2908", []string{"encrypt-read"}, []byte{mouseReportID, 1})
+	p.consumer = p.addChar(hid, "2a4d", []string{"encrypt-read", "notify"}, make([]byte, 2))
+	addDesc(p.consumer, "2908", []string{"encrypt-read"}, []byte{consumerReportID, 1})
 
 	bat := p.addService("180f")
 	p.addChar(bat, "2a19", []string{"read", "notify"}, []byte{100})
@@ -518,4 +526,10 @@ func (p *Peripheral) KeyReport(mods byte, keys ...byte) error {
 // DevicePath returns the BlueZ object path for a MAC address on this adapter.
 func (p *Peripheral) DevicePath(mac string) dbus.ObjectPath {
 	return dbus.ObjectPath(fmt.Sprintf("%s/dev_%s", p.adapter, strings.ReplaceAll(strings.ToUpper(mac), ":", "_")))
+}
+
+// ConsumerKey presses a consumer-control usage (e.g. 0xE9 volume up); 0
+// releases it.
+func (p *Peripheral) ConsumerKey(usage uint16) error {
+	return p.consumer.notify([]byte{byte(usage), byte(usage >> 8)})
 }

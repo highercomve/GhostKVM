@@ -36,6 +36,10 @@ const (
 
 	KeyA = 30
 	KeyZ = 44
+
+	KeyMute      = 113
+	KeyVolumeUp  = 115
+	KeyPlayPause = 164
 )
 
 // Event is one input_event.
@@ -51,6 +55,7 @@ type Device struct {
 	Name    string
 	IsMouse bool // has relative X/Y and a left button
 	IsKbd   bool // has letter keys
+	IsMedia bool // has media keys (volume, mute, play/pause), e.g. a "Consumer Control" device
 	f       *os.File
 	grabbed bool
 }
@@ -108,6 +113,7 @@ func Open(path string) (*Device, error) {
 		}
 	}
 	d.IsKbd = letters >= 10
+	d.IsMedia = testBit(keyBits, KeyMute) || testBit(keyBits, KeyVolumeUp) || testBit(keyBits, KeyPlayPause)
 	return d, nil
 }
 

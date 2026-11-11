@@ -97,6 +97,8 @@ func kindOf(d *evdev.Device) string {
 		return "mouse"
 	case d.IsKbd:
 		return "keyboard"
+	case d.IsMedia:
+		return "media keys"
 	}
 	return ""
 }
@@ -282,6 +284,9 @@ func (k *KVM) grabAll(on bool) {
 // SetOutputProblem records why the output couldn't start; call before Run.
 func (k *KVM) SetOutputProblem(p string) { k.outputProblem = p }
 
+// consumerSender is implemented by outputs that can send media keys.
+type consumerSender interface{ ConsumerKey(usage uint16) error }
+
 // hostNamer is implemented by HID outputs that know the connected device.
 type hostNamer interface{ HostName() string }
 
@@ -437,6 +442,21 @@ func (k *KVM) handleKey(code uint16, value int32) {
 	}
 	if code >= evdev.BtnLeft && code < 0x160 {
 		return // other mouse buttons: not forwarded
+	}
+	// Media keys (volume, mute, play/pause): forwarded as consumer-control
+	// usages while the peer has control. They don't count as held keys, so
+	// they never block switching.
+	if usage, ok := keymap.Consumer[code]; ok {
+		if k.remote {
+			if cs, ok := k.hid.(consumerSender); ok {
+				if down {
+					cs.ConsumerKey(usage)
+				} else {
+					cs.ConsumerKey(0)
+				}
+			}
+		}
+		return
 	}
 
 	if mod, ok := keymap.Modifier[code]; ok {

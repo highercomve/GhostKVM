@@ -48,6 +48,19 @@ var Usage = map[uint16]byte{
 	110: 0x49, 111: 0x4C, 119: 0x48, 127: 0x65, // Insert Delete Pause Menu
 }
 
+// Consumer maps evdev media keys to HID consumer-control usages (page 0x0C).
+var Consumer = map[uint16]uint16{
+	113: 0x00E2, // mute
+	114: 0x00EA, // volume down
+	115: 0x00E9, // volume up
+	163: 0x00B5, // next track
+	164: 0x00CD, // play/pause
+	165: 0x00B6, // previous track
+	166: 0x00B7, // stop
+	224: 0x0070, // brightness down
+	225: 0x006F, // brightness up
+}
+
 var names = map[string]uint16{
 	"esc": 1, "escape": 1, "tab": 15, "enter": 28, "return": 28, "space": 57, "backspace": 14,
 	"capslock": 58, "scrolllock": 70, "pause": 119, "insert": 110, "delete": 111, "home": 102,

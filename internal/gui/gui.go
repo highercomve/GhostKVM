@@ -560,9 +560,9 @@ func (a *App) updateDevices(devs []kvm.DeviceInfo) {
 	objs := make([]fyne.CanvasObject, 0, len(rows)*2)
 	for i, r := range rows {
 		name := r.name
-		kind := "Keyboard"
-		if r.kind == "mouse" {
-			kind = "Mouse"
+		kind := map[string]string{"mouse": "Mouse", "media keys": "Media keys (volume, play/pause)"}[r.kind]
+		if kind == "" {
+			kind = "Keyboard"
 		}
 		title := widget.NewLabelWithStyle(name, fyne.TextAlignLeading, fyne.TextStyle{Bold: true})
 		title.Truncation = fyne.TextTruncateEllipsis
