@@ -64,6 +64,7 @@ type KVM struct {
 	frame map[*evdev.Device]*frameAcc
 
 	remote bool
+	stats  linkStats // input timing while the peer has control, logged on return
 
 	// local mode
 	push        float64
@@ -80,7 +81,10 @@ type KVM struct {
 	accWheel   int
 }
 
-type frameAcc struct{ dx, dy, wheel int32 }
+type frameAcc struct {
+	dx, dy, wheel int32
+	last          time.Time // when the previous motion frame from this device arrived
+}
 
 type skipInfo struct {
 	name, kind string // kind is "" for devices that are neither keyboard nor mouse
@@ -387,8 +391,12 @@ func (k *KVM) handle(d *evdev.Device, ev evdev.Event) {
 	case evdev.EvSyn:
 		if ev.Code == evdev.SynReport {
 			if f := k.frame[d]; f != nil && (f.dx != 0 || f.dy != 0 || f.wheel != 0) {
+				now := time.Now()
+				if k.remote && !f.last.IsZero() {
+					k.stats.input(now.Sub(f.last))
+				}
 				k.handleMotion(float64(f.dx), float64(f.dy), int(f.wheel))
-				*f = frameAcc{}
+				*f = frameAcc{last: now}
 			}
 		}
 	}
@@ -640,6 +648,10 @@ func (k *KVM) leaveRemote(why string) {
 		return
 	}
 	k.remote = false
+	if s := k.stats.summary(); s != "" {
+		log.Printf("input while on %s: %s", k.peerName(), s)
+	}
+	k.stats = linkStats{}
 	// Release everything on the peer so nothing stays stuck.
 	k.remoteKeys = k.remoteKeys[:0]
 	k.hid.KeyReport(0)

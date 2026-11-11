@@ -466,6 +466,12 @@ func (p *Peripheral) Start() error {
 		Logf("could not become default pairing agent (%v); you may need to confirm pairing elsewhere", err)
 	}
 
+	// A host still linked from a previous run keeps a stale view of our
+	// service; drop it now, before registering, so it reconnects to the new
+	// one. Doing this after advertising would cut off a host that already
+	// reconnected and is setting up input, which leaves its HID driver stuck.
+	p.disconnectHosts("left over from a previous run")
+
 	// Keep the classic Bluetooth side hidden: if the adapter is discoverable,
 	// hosts merge the LE advertisement with the classic "computer" entry and
 	// GhostKVM never shows up as a keyboard.
@@ -480,9 +486,6 @@ func (p *Peripheral) Start() error {
 		return fmt.Errorf("register advertisement: %w", err)
 	}
 	Logf("advertising as %q", p.name)
-	// A host still linked from a previous run would keep using its stale view
-	// of our service; make it reconnect to this one.
-	p.disconnectHosts("left over from a previous run")
 	return nil
 }
 
