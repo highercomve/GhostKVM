@@ -349,6 +349,16 @@ func (p *Peripheral) HostName() string {
 // disconnectHosts drops the links of connected hosts so they reconnect
 // cleanly: a host whose link outlived our GATT service (a restart) keeps a
 // stale view of it and its HID driver stops listening.
+// Reconnect drops the link to the host so it reconnects with fresh link
+// parameters; a host that slowed the link down (power saving) is fast again.
+func (p *Peripheral) Reconnect() error {
+	if len(p.connectedHosts()) == 0 {
+		return fmt.Errorf("no device is connected")
+	}
+	p.disconnectHosts("reconnect requested")
+	return nil
+}
+
 func (p *Peripheral) disconnectHosts(why string) {
 	for _, h := range p.connectedHosts() {
 		Logf("disconnecting %s (%s)", h, why)

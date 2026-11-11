@@ -333,7 +333,8 @@ func (a *App) setupTray() {
 			go a.checkForUpdates(true)
 		}
 	})
-	a.trayMenu = fyne.NewMenu("GhostKVM", a.trayStatus, a.traySwitch, fyne.NewMenuItemSeparator(), open, a.trayUpdate)
+	reconnect := fyne.NewMenuItem("Reconnect (fixes lag)", a.reconnect)
+	a.trayMenu = fyne.NewMenu("GhostKVM", a.trayStatus, a.traySwitch, reconnect, fyne.NewMenuItemSeparator(), open, a.trayUpdate)
 	a.desk.SetSystemTrayMenu(a.trayMenu)
 	a.desk.SetSystemTrayIcon(iconDisconnected)
 	a.lastIcon = iconDisconnected

@@ -4,11 +4,13 @@ import (
 	"fmt"
 	"os"
 	"strings"
+	"time"
 
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/container"
 	"fyne.io/fyne/v2/dialog"
 	"fyne.io/fyne/v2/layout"
+	"fyne.io/fyne/v2/theme"
 	"fyne.io/fyne/v2/widget"
 
 	"github.com/highercomve/GhostKVM/internal/serialhid"
@@ -47,8 +49,13 @@ func (a *App) buildConnectionCard() fyne.CanvasObject {
 
 	save := widget.NewButton("Save and restart", a.saveConnection)
 	save.Importance = widget.HighImportance
+	reconnect := widget.NewButton("Reconnect", a.reconnect)
+	hint := widget.NewLabel("Bluetooth lagging? Reconnect gives the link a fresh start; the device is back in a few seconds.")
+	hint.Wrapping = fyne.TextWrapWord
+	hint.Importance = widget.LowImportance
+	hint.SizeName = theme.SizeNameCaptionText
 	return newCard("Connection", "How the keyboard and mouse reach the other device. Changing it restarts GhostKVM.",
-		container.NewVBox(a.outputSelect, a.usbBox, container.NewHBox(layout.NewSpacer(), save)))
+		container.NewVBox(a.outputSelect, a.usbBox, hint, container.NewHBox(reconnect, layout.NewSpacer(), save)))
 }
 
 // refreshPorts lists serial ports without opening them: other hardware may be
@@ -118,4 +125,19 @@ func (a *App) restart() {
 		return
 	}
 	a.fa.Quit()
+}
+
+// reconnect refreshes the Bluetooth link to the other device.
+func (a *App) reconnect() {
+	go func() {
+		err := a.k.Reconnect()
+		fyne.Do(func() {
+			if err != nil {
+				dialog.ShowError(err, a.win)
+				return
+			}
+			a.savedAt = time.Now()
+			a.savedNote.SetText("Reconnecting…")
+		})
+	}()
 }

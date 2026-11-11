@@ -195,6 +195,9 @@ func run(k *kvm.KVM, r Request) (*kvm.Status, error) {
 		}
 		return nil, nil
 
+	case "reconnect":
+		return nil, k.Reconnect()
+
 	case "switch":
 		switch r.Target {
 		case "peer", "device", "remote", "chromebook":
@@ -235,6 +238,7 @@ keyboard and mouse stay on this computer.
   doubleclick [button]         double-click
   scroll <n>                   scroll wheel; positive is up, negative is down
   switch peer|desktop          give your keyboard and mouse to one side
+  reconnect                    refresh the Bluetooth link (fixes lag that built up)
 `
 
 // Main runs the `ghostkvm ctl` client and returns the process exit code.
@@ -318,6 +322,7 @@ func parseArgs(args []string) (Request, error) {
 			return r, err
 		}
 		r.Amount = int(n)
+	case "reconnect":
 	case "switch":
 		if len(rest) != 1 {
 			return r, errors.New("switch needs peer or desktop")

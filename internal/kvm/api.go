@@ -194,6 +194,27 @@ func (k *KVM) MovePeerBy(dx, dy float64) error {
 	})
 }
 
+// reconnecter is implemented by outputs whose link can be refreshed.
+type reconnecter interface{ Reconnect() error }
+
+// Reconnect refreshes the link to the other device (Bluetooth): it drops the
+// connection and the device reconnects within seconds. Control comes back
+// to this computer first, since the device is briefly gone.
+func (k *KVM) Reconnect() error {
+	rc, ok := k.hid.(reconnecter)
+	if !ok {
+		return errors.New("this connection has nothing to reconnect")
+	}
+	var err error
+	if e := k.do(func() {
+		k.leaveRemote("reconnecting")
+		err = rc.Reconnect()
+	}); e != nil {
+		return e
+	}
+	return err
+}
+
 // SetMode gives the user's keyboard and mouse to the peer (true) or back
 // to this computer (false).
 func (k *KVM) SetMode(peer bool) error {
