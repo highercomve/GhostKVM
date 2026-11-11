@@ -40,6 +40,7 @@ func sample() kvm.Status {
 		Monitors:      []screen.Monitor{{Name: "DP-1", X: 0, Y: 0, Width: 2560, Height: 1440}},
 		Desktop:       "Hyprland",
 		EdgeSwitching: true,
+		Output:        "bluetooth",
 		PeerName:      "Chromebook",
 		PeerDevice:    "Chromebook",
 		Devices: []kvm.DeviceInfo{
@@ -89,7 +90,7 @@ func main() {
 		{"app-peer.png", peer, fyne.NewSize(1120, 640), false},
 		{"app-waiting.png", waiting, fyne.NewSize(1120, 640), false},
 		{"app-two-monitors.png", above, fyne.NewSize(1120, 640), false},
-		{"app-full.png", connected, fyne.NewSize(1120, 1380), false},
+		{"app-full.png", connected, fyne.NewSize(1120, 1720), false},
 	}
 	for _, s := range scenes {
 		img := gui.Preview(s.st, cfg, s.size, s.light)

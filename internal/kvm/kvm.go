@@ -41,10 +41,11 @@ type KVM struct {
 	scr screen.Backend
 	ew  screen.EdgeWatcher // non-nil when the desktop reports edge crossings itself
 
-	peerDevice  string // Bluetooth name of the connected device, refreshed every 2s
-	watchedEdge string // last edge handed to ew.WatchEdge
-	edgeProblem string // why edge switching isn't working, for the UI
-	hotkey      keymap.Hotkey
+	peerDevice    string // Bluetooth name of the connected device, refreshed every 2s
+	watchedEdge   string // last edge handed to ew.WatchEdge
+	edgeProblem   string // why edge switching isn't working, for the UI
+	outputProblem string // why the output (Bluetooth or USB) couldn't start
+	hotkey        keymap.Hotkey
 
 	devices map[string]*evdev.Device // open, captured-capable devices by path
 	skipped map[string]skipInfo      // paths we looked at and do not use
@@ -277,6 +278,9 @@ func (k *KVM) grabAll(on bool) {
 		}
 	}
 }
+
+// SetOutputProblem records why the output couldn't start; call before Run.
+func (k *KVM) SetOutputProblem(p string) { k.outputProblem = p }
 
 // hostNamer is implemented by HID outputs that know the connected device.
 type hostNamer interface{ HostName() string }
@@ -599,8 +603,26 @@ func (k *KVM) enterRemote(frac float64, why string) {
 
 // placePeerPointer pins the peer's pointer against the edge it enters from,
 // then slides it along that edge, so we know where it is.
+// absMover is implemented by outputs that can place the pointer at an exact
+// position (the USB bridge); fx and fy are fractions of the peer's screen.
+type absMover interface{ MoveAbs(fx, fy float64) error }
+
 func (k *KVM) placePeerPointer(frac float64) {
 	W, H := k.cfg.Peer.Width, k.cfg.Peer.Height
+	if am, ok := k.hid.(absMover); ok {
+		switch k.cfg.Peer.Side {
+		case "left":
+			k.vx, k.vy = W-1, frac*H
+		case "right":
+			k.vx, k.vy = 0, frac*H
+		case "top":
+			k.vx, k.vy = frac*W, H-1
+		default:
+			k.vx, k.vy = frac*W, 0
+		}
+		am.MoveAbs(k.vx/(W-1), k.vy/(H-1))
+		return
+	}
 	big := 2 * math.Max(W, H)
 	switch k.cfg.Peer.Side {
 	case "left": // peer is left of us: enter on its right edge

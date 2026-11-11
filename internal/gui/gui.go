@@ -21,6 +21,7 @@ import (
 
 	"github.com/highercomve/GhostKVM/internal/config"
 	"github.com/highercomve/GhostKVM/internal/kvm"
+	"github.com/highercomve/GhostKVM/internal/serialhid"
 	"github.com/highercomve/GhostKVM/internal/update"
 	"github.com/highercomve/GhostKVM/internal/version"
 )
@@ -75,6 +76,13 @@ type App struct {
 	lastIcon   fyne.Resource
 
 	filling bool // true while controls are set from config (no apply)
+
+	// connection
+	outputSelect *widget.RadioGroup
+	usbBox       *fyne.Container
+	portSelect   *widget.Select
+	ports        []serialhid.Port
+	boardSelect  *widget.Select
 }
 
 var resolutions = []string{"1366 × 768", "1536 × 864", "1600 × 900", "1920 × 1080", "1920 × 1200", "2560 × 1440", "Custom…"}
@@ -129,6 +137,7 @@ func (a *App) build() fyne.CanvasObject {
 	content := container.NewVBox(
 		a.buildLayoutCard(),
 		container.NewGridWithColumns(2, a.buildPeerCard(), a.buildSwitchCard()),
+		a.buildConnectionCard(),
 		a.buildDevicesCard(),
 		a.buildFooter(),
 	)
@@ -309,6 +318,7 @@ func (a *App) fillSettings() {
 	a.pushSlider.SetValue(c.EdgePush)
 	a.pushValue.SetText(fmt.Sprintf("%d px", int(c.EdgePush)))
 	a.hotkeyEntry.SetText(c.Hotkey)
+	a.fillConnection()
 }
 
 func (a *App) setupTray() {
@@ -331,7 +341,10 @@ func (a *App) setupTray() {
 
 // ---------------------------------------------------------------- actions
 
-func (a *App) apply(c config.Config) {
+func (a *App) apply(c config.Config) { a.applyThen(c, nil) }
+
+// applyThen applies and saves c, then runs then (if set) on success.
+func (a *App) applyThen(c config.Config, then func()) {
 	// Controls fire their change handlers when fillSettings sets them; those
 	// are not user edits. Previews have no KVM behind them.
 	if a.filling || a.k == nil {
@@ -356,6 +369,9 @@ func (a *App) apply(c config.Config) {
 			a.update(st)
 			a.savedAt = time.Now()
 			a.savedNote.SetText("✓ Saved")
+			if then != nil {
+				then()
+			}
 		})
 	}()
 }
@@ -484,7 +500,9 @@ func (a *App) update(st kvm.Status) {
 		summary = fmt.Sprintf("%s doesn't let apps follow the pointer, so switch to the %s with %s or the tray. To come back, push past the %s's %s edge or press %s again.",
 			st.Desktop, peer, st.Config.Hotkey, peer, back, st.Config.Hotkey)
 	}
-	if st.EdgeProblem != "" {
+	if st.OutputProblem != "" {
+		summary = "Not connected: " + st.OutputProblem + "."
+	} else if st.EdgeProblem != "" {
 		summary = "Edge switching isn't working: " + st.EdgeProblem + ". Press " + st.Config.Hotkey + " to switch meanwhile."
 	}
 	if !st.Connected {

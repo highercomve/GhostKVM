@@ -28,12 +28,23 @@ type Config struct {
 	Hotkey        string   `toml:"hotkey" json:"hotkey"`
 	EdgePush      float64  `toml:"edge_push" json:"edge_push"`                               // how far to keep pushing past an edge before switching
 	Ignore        []string `toml:"ignore" json:"ignore"`                                     // input device names (substring) never grabbed
-	ScreenBackend string   `toml:"screen_backend,omitempty" json:"screen_backend,omitempty"` // auto | hyprland | x11 | none
+	ScreenBackend string   `toml:"screen_backend,omitempty" json:"screen_backend,omitempty"` // auto | hyprland | x11 | portal | none
+	Output        string   `toml:"output,omitempty" json:"output,omitempty"`                 // bluetooth (default) | usb
+	USBPort       string   `toml:"usb_port,omitempty" json:"usb_port,omitempty"`             // serial port of the USB bridge
+	USBBaud       int      `toml:"usb_baud,omitempty" json:"usb_baud,omitempty"`             // 115200 for GhostKVM's firmware, 9600 for a stock CH9329
 	Peer          Peer     `toml:"peer" json:"peer"`
 }
 
 // Default is written to disk the first time GhostKVM runs.
 const Default = `# GhostKVM configuration
+
+# How keyboard and mouse reach the other device:
+#   "bluetooth"  this computer acts as a Bluetooth keyboard and mouse
+#   "usb"        a USB bridge (GhostKVM's ESP32-S3 firmware, or a CH9329 cable)
+#                on usb_port, which the other device sees as a wired keyboard and mouse
+output = "bluetooth"
+# usb_port = "/dev/serial/by-id/usb-Silicon_Labs_CP2102N_..."
+# usb_baud = 115200   # 9600 for a CH9329 cable as it ships
 
 # Name the desktop advertises as a Bluetooth keyboard+mouse.
 bluetooth_name = "GhostKVM"
@@ -99,6 +110,16 @@ func (c *Config) Validate() error {
 	}
 	if c.Hotkey == "" {
 		c.Hotkey = "Ctrl+Alt+K"
+	}
+	switch c.Output {
+	case "":
+		c.Output = "bluetooth"
+	case "bluetooth", "usb":
+	default:
+		return fmt.Errorf("output must be bluetooth or usb, got %q", c.Output)
+	}
+	if c.USBBaud <= 0 {
+		c.USBBaud = 115200
 	}
 	if c.EdgePush <= 0 {
 		c.EdgePush = 40

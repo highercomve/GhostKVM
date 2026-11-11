@@ -132,6 +132,10 @@
         <p>GhostKVM checks for a release once a day and installs it only when its signature matches the key built into the app. Packages update through your package manager.</p>
       </article>
       <article>
+        <h3>Wireless or wired</h3>
+        <p>Bluetooth needs no hardware. For zero lag, a US$10 ESP32-S3 board (or a CH9329 cable) between the two machines makes GhostKVM a wired USB keyboard and mouse, with exact pointer placement.</p>
+      </article>
+      <article>
         <h3>Scriptable</h3>
         <p><code>ghostkvm ctl</code> types, clicks and presses shortcuts on the Chromebook from scripts, automation tools and AI agents, while you keep working on the desktop.</p>
       </article>
@@ -190,6 +194,10 @@ ghostkvm ctl key Return</code></pre>
       <details>
         <summary>Does it only work with Chromebooks?</summary>
         <p>No. The Chromebook is the reason GhostKVM exists (it can't run a helper app), but your desktop shows up as a standard Bluetooth keyboard and mouse, so anything that accepts one works: Android tablets and phones, iPads, Macs, Windows PCs and TVs. GhostKVM shows the device by its own Bluetooth name.</p>
+      </details>
+      <details>
+        <summary>The pointer sometimes lags over Bluetooth</summary>
+        <p>Bluetooth shares the radio with your other wireless devices, so delays come and go. Use the wired USB bridge instead: an ESP32-S3-DevKitC-1 flashed with GhostKVM's firmware, or a CH9329 cable, plugged into both machines. Choose <b>USB bridge</b> under Connection. See the <a href="{{ site.Params.repo }}#wired-usb-instead-of-bluetooth">README</a> for flashing.</p>
       </details>
       <details>
         <summary>Does it work on GNOME or KDE?</summary>

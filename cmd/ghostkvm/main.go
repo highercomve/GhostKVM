@@ -24,6 +24,7 @@ import (
 	"github.com/highercomve/GhostKVM/internal/gui"
 	"github.com/highercomve/GhostKVM/internal/kvm"
 	"github.com/highercomve/GhostKVM/internal/screen/auto"
+	"github.com/highercomve/GhostKVM/internal/serialhid"
 	"github.com/highercomve/GhostKVM/internal/update"
 )
 
@@ -36,6 +37,7 @@ func main() {
 	flag.Parse()
 	log.SetFlags(log.Ltime)
 	blehid.Logf = log.Printf
+	serialhid.Logf = log.Printf
 	// After a self-update, the old version is still shutting down: wait for
 	// it to hand back Bluetooth and the control socket.
 	update.WaitForPrevious(15 * time.Second)
@@ -52,24 +54,21 @@ func main() {
 	}
 	log.Printf("desktop: %s (edge switching: %v)", scr.Name(), scr.EdgeSwitching())
 
-	p, err := blehid.New(cfg.BluetoothName)
-	if err != nil {
-		log.Fatal(err)
+	out, closeOut, problem := openOutput(cfg)
+	defer closeOut()
+	if problem != "" {
+		log.Printf("output: %s", problem)
 	}
-	if err := p.Start(); err != nil {
-		p.Stop()
-		log.Fatal(err)
-	}
-	defer p.Stop()
 
-	k, err := kvm.New(cfg, p, scr)
+	k, err := kvm.New(cfg, out, scr)
 	if err != nil {
 		log.Fatal(err)
 	}
+	k.SetOutputProblem(problem)
 
 	ln, err := ctl.Serve(k)
 	if err != nil {
-		p.Stop()
+		closeOut()
 		log.Fatal(err)
 	}
 	defer ln.Close()
@@ -96,3 +95,37 @@ func main() {
 	<-done
 	log.Print("stopped")
 }
+
+// openOutput opens the configured way of reaching the other device. When the
+// USB bridge can't be opened, GhostKVM still starts (so it can be fixed in
+// Settings) with an output that is never connected, and problem says why.
+func openOutput(cfg *config.Config) (kvm.HID, func(), string) {
+	if cfg.Output == "usb" {
+		if cfg.USBPort == "" {
+			return disconnected{}, func() {}, serialhid.ErrNoPort.Error()
+		}
+		d, err := serialhid.Open(cfg.USBPort, cfg.USBBaud)
+		if err != nil {
+			return disconnected{}, func() {}, "USB bridge: " + err.Error()
+		}
+		log.Printf("output: USB bridge on %s at %d baud", cfg.USBPort, cfg.USBBaud)
+		return d, func() { d.Close() }, ""
+	}
+	p, err := blehid.New(cfg.BluetoothName)
+	if err == nil {
+		if err = p.Start(); err != nil {
+			p.Stop()
+		}
+	}
+	if err != nil {
+		return disconnected{}, func() {}, "Bluetooth: " + err.Error()
+	}
+	return p, p.Stop, ""
+}
+
+// disconnected is the output used when the configured one couldn't start.
+type disconnected struct{}
+
+func (disconnected) MouseMove(byte, int16, int16, int8) error { return nil }
+func (disconnected) KeyReport(byte, ...byte) error            { return nil }
+func (disconnected) HostSubscribed() bool                     { return false }

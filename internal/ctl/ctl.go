@@ -262,12 +262,15 @@ func Main(args []string) int {
 		if st.Connected {
 			conn = "connected"
 		}
+		if st.OutputProblem != "" {
+			conn = "not connected: " + st.OutputProblem
+		}
 		control := "this computer"
 		if st.Mode == "peer" {
 			control = st.PeerName
 		}
-		fmt.Printf("%s: %s\ncontrol: %s\nlayout: %s of %s, %vx%v\n",
-			st.PeerName, conn, control, st.Config.Peer.Side, st.Config.Peer.Monitor,
+		fmt.Printf("%s: %s (over %s)\ncontrol: %s\nlayout: %s of %s, %vx%v\n",
+			st.PeerName, conn, st.Output, control, st.Config.Peer.Side, st.Config.Peer.Monitor,
 			st.Config.Peer.Width, st.Config.Peer.Height)
 	}
 	return 0

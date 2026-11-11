@@ -39,11 +39,13 @@ type Status struct {
 	Connected     bool             `json:"connected"`
 	Config        config.Config    `json:"config"`
 	Monitors      []screen.Monitor `json:"monitors"`
-	Desktop       string           `json:"desktop"`                // screen backend, e.g. "Hyprland", "X11", "GNOME (Wayland)"
-	EdgeSwitching bool             `json:"edge_switching"`         // false: switch with the hotkey or tray
-	EdgeProblem   string           `json:"edge_problem,omitempty"` // why edge switching isn\'t working right now
-	PeerName      string           `json:"peer_name"`              // nickname, else the connected device\'s Bluetooth name, else "other device"
-	PeerDevice    string           `json:"peer_device,omitempty"`  // Bluetooth name of the connected device
+	Desktop       string           `json:"desktop"`                  // screen backend, e.g. "Hyprland", "X11", "GNOME (Wayland)"
+	EdgeSwitching bool             `json:"edge_switching"`           // false: switch with the hotkey or tray
+	EdgeProblem   string           `json:"edge_problem,omitempty"`   // why edge switching isn\'t working right now
+	PeerName      string           `json:"peer_name"`                // nickname, else the connected device\'s Bluetooth name, else "other device"
+	PeerDevice    string           `json:"peer_device,omitempty"`    // Bluetooth name of the connected device
+	Output        string           `json:"output"`                   // bluetooth | usb
+	OutputProblem string           `json:"output_problem,omitempty"` // why the output couldn\'t start
 	Devices       []DeviceInfo     `json:"devices"`
 }
 
@@ -64,6 +66,8 @@ func (k *KVM) Status() (Status, error) {
 		st.EdgeProblem = k.edgeProblem
 		st.PeerName = k.peerName()
 		st.PeerDevice = k.peerDevice
+		st.Output = k.cfg.Output
+		st.OutputProblem = k.outputProblem
 		for path, d := range k.devices {
 			st.Devices = append(st.Devices, DeviceInfo{Path: path, Name: d.Name, Kind: kindOf(d), Used: true})
 		}
@@ -166,6 +170,11 @@ func (k *KVM) MovePeerTo(x, y float64) error {
 	return k.do(func() {
 		W, H := k.cfg.Peer.Width, k.cfg.Peer.Height
 		x, y = clampF(x, 0, W-1), clampF(y, 0, H-1)
+		if am, ok := k.hid.(absMover); ok { // exact, no acceleration
+			am.MoveAbs(x/(W-1), y/(H-1))
+			k.vx, k.vy = x, y
+			return
+		}
 		big := 2 * max(W, H)
 		k.sendMove(-big, -big)
 		k.sendMove(x, y)

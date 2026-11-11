@@ -196,6 +196,45 @@ end)
 `ghostkvm -headless` runs without the window and tray, for example from a systemd user
 service.
 
+## Wired USB instead of Bluetooth
+
+Bluetooth shares the radio with your other wireless devices, so the pointer can lag now
+and then. For a wired connection, put a small **USB bridge** between the two computers:
+the other device sees a USB keyboard and mouse, with no pairing, no radio, and exact
+pointer placement (absolute positioning). It also works on login screens.
+
+```
+this computer ──USB──▶ [ UART port   ESP32-S3-DevKitC-1   USB port ] ──USB──▶ other device
+                        serial link                        wired keyboard + mouse
+```
+
+**What to use**
+
+| Bridge | Notes |
+|---|---|
+| **ESP32-S3-DevKitC-1** (or any ESP32-S3 board with both a "UART" and a native "USB" port) | Flash GhostKVM's firmware once. About US$10. |
+| **CH9329 cable or module** (+ a USB-to-serial adapter for the bare module) | Works as it comes; set *Board* to "CH9329 cable" (9600 baud). |
+
+**Set it up**
+
+1. Flash the firmware (ESP32-S3 only), with the board's **UART** port connected to this
+   computer. Download `ghostkvm-esp32s3-firmware.bin` from the
+   [latest release](https://github.com/highercomve/GhostKVM/releases/latest) and flash it at
+   address 0 with esptool or the [Espressif web flasher](https://espressif.github.io/esptool-js/),
+   or build and flash from source:
+   ```bash
+   uv tool install platformio          # or: pip install platformio
+   make flash PORT=/dev/serial/by-id/usb-Silicon_Labs_CP2102N...   # the UART port
+   ```
+2. Connect the board's native **USB** port to the other device.
+3. In GhostKVM, open **Connection**, choose **USB bridge**, pick the serial port and the
+   board, then **Save and restart**. Your user needs access to serial ports (the `uucp` or
+   `dialout` group, depending on the distribution).
+
+GhostKVM never opens serial ports on its own: other hardware may be attached, so it only
+uses the port you choose. Both sides speak the CH9329 serial protocol, so the ESP32-S3
+firmware and a CH9329 cable are interchangeable.
+
 ## Drive the Chromebook from scripts
 
 `ghostkvm ctl` sends keys and mouse actions to the Chromebook through the running
@@ -223,6 +262,9 @@ Everything in the window is saved to `~/.config/ghostkvm/config.toml`, which you
 edit by hand (restart GhostKVM afterwards):
 
 ```toml
+output = "bluetooth"            # or "usb" for a USB bridge (see "Wired USB")
+usb_port = ""                   # the bridge's serial port, e.g. /dev/serial/by-id/...
+usb_baud = 115200               # 9600 for a CH9329 cable as it ships
 bluetooth_name = "GhostKVM"     # name the Chromebook sees when pairing
 hotkey = "Ctrl+Alt+K"           # switch from either computer
 edge_push = 40.0                # pixels to keep pushing past the edge before switching
@@ -265,6 +307,8 @@ the keyboard and mouse back to the desktop.
 | [`internal/blehid`](internal/blehid) | Registers a HID-over-GATT service and advertisement with BlueZ over D-Bus, so the adapter appears as a BLE keyboard and mouse |
 | [`internal/evdev`](internal/evdev) | Reads `/dev/input` devices and grabs them exclusively while the Chromebook has control, so the desktop stops reacting |
 | [`internal/screen`](internal/screen) | The desktop side: monitors, cursor position, moving and hiding the cursor, with backends for Hyprland, X11, the Wayland InputCapture portal (with a small pure-Go EI client) and a hotkey-only fallback |
+| [`internal/serialhid`](internal/serialhid) | The wired output: CH9329 serial protocol to a USB bridge |
+| [`firmware/esp32s3`](firmware/esp32s3) | The ESP32-S3 USB bridge firmware (keyboard, relative and absolute mouse) |
 | [`internal/ctl`](internal/ctl) | The control socket and `ghostkvm ctl` |
 | [`internal/update`](internal/update) | The signed self-updater; [`tools/updater`](tools/updater) signs releases |
 | [`internal/kvm`](internal/kvm) | The switching state machine: edge detection, tracking the Chromebook's pointer, forwarding keys and motion |
@@ -286,6 +330,8 @@ make screenshots   # re-render docs/images/app*.png from the real UI with sample
 cd site && hugo server   # preview the website at http://localhost:1313/GhostKVM/
 make bletest   # bin/ghostkvm-bletest, a static binary for testing an adapter
 make release-tarball packages   # what CI builds: the .tar.xz plus .deb, .rpm and Arch packages
+make firmware-bin               # the ESP32-S3 bridge firmware as one image (needs PlatformIO)
+make flash PORT=/dev/ttyUSB0    # build and flash the bridge over its UART port
 ```
 
 ### Releasing
@@ -304,7 +350,7 @@ the release.
 
 - Clipboard sharing between the desktop and the Chromebook
 - Media and volume keys
-- Windows and macOS on the desktop side, through a small USB dongle (they don't allow acting as a Bluetooth keyboard)
+- Windows and macOS on the desktop side, now possible through the USB bridge (they don't allow acting as a Bluetooth keyboard)
 
 ## License
 

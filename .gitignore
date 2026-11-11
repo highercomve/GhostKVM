@@ -6,3 +6,4 @@ site/resources/
 site/.hugo_build.lock
 .playwright-mcp/
 release/
+firmware/esp32s3/.pio/

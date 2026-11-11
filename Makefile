@@ -2,7 +2,7 @@ BINARY_NAME = ghostkvm
 VERSION    ?= $(shell git describe --tags --always --dirty="-dev" 2>/dev/null || echo "0.1.0")
 LDFLAGS    := -s -w -X=github.com/highercomve/GhostKVM/internal/version.Version=$(VERSION)
 
-.PHONY: all build bletest icons screenshots release-tarball packages test vet run install-local uninstall-local clean help
+.PHONY: all build bletest icons screenshots release-tarball packages firmware firmware-bin flash test vet run install-local uninstall-local clean help
 
 all: build
 
@@ -48,6 +48,26 @@ packages: build ## Build .deb, .rpm and Arch packages into release/ (needs nfpm)
 	VERSION=$(PKG_VERSION) ARCH=$(DEB_ARCH) BINARY=bin/$(BINARY_NAME) envsubst < nfpm.yaml > release/nfpm-$(DEB_ARCH).yaml
 	for p in deb rpm archlinux; do nfpm pkg --config release/nfpm-$(DEB_ARCH).yaml --packager $$p --target release/ || exit 1; done
 	rm -f release/nfpm-$(DEB_ARCH).yaml
+
+# ---------------------------------------------------------------- USB bridge firmware
+FW_DIR   = firmware/esp32s3
+FW_BUILD = $(FW_DIR)/.pio/build/esp32s3
+FW_BIN   = release/ghostkvm-esp32s3-firmware.bin
+
+firmware: ## Build the ESP32-S3 USB bridge firmware (needs PlatformIO: uv tool install platformio)
+	cd $(FW_DIR) && pio run
+
+firmware-bin: firmware ## Merge bootloader, partitions and app into one image to flash at 0x0
+	@mkdir -p release
+	cd $(FW_DIR) && pio pkg exec -p tool-esptool -- esptool --chip esp32s3 merge-bin -o ../../$(FW_BIN) \
+		0x0 .pio/build/esp32s3/bootloader.bin 0x8000 .pio/build/esp32s3/partitions.bin \
+		0xe000 $$HOME/.platformio/packages/framework-arduinoespressif32/tools/partitions/boot_app0.bin \
+		0x10000 .pio/build/esp32s3/firmware.bin
+	@echo "built $(FW_BIN)"
+
+flash: ## Flash the firmware over the board's UART port: make flash PORT=/dev/ttyUSB0
+	@test -n "$(PORT)" || { echo "usage: make flash PORT=/dev/serial/by-id/... (the board's UART port)"; exit 1; }
+	cd $(FW_DIR) && pio run -t upload --upload-port "$(PORT)"
 
 vet: ## Run go vet (including the screenshots build)
 	go vet ./...

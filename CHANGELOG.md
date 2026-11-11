@@ -11,4 +11,5 @@ First release.
 - Edge switching on Hyprland, X11 desktops, and GNOME and KDE on Wayland through the InputCapture portal; hotkey and tray switching everywhere else.
 - Drag-to-arrange layout, pointer speed, edge resistance and hotkey settings in a tray app.
 - `ghostkvm ctl` drives the Chromebook from scripts and tools such as desktopctrl.
+- Wired option: a USB bridge (ESP32-S3 board with GhostKVM's firmware, or a CH9329 cable) instead of Bluetooth, with absolute pointer positioning.
 - Signed automatic updates.
